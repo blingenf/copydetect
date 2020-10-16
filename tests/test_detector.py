@@ -25,6 +25,17 @@ class TwoFileTestCase(unittest.TestCase):
         self.assertTrue(sim_test)
         self.assertTrue(token_test)
 
+        html_out = detector.generate_html_report(output_mode="return")
+
+        # verify highlighting code isn't being escaped
+        test_str1 = "data[2] = [</span>0<span class='highlight-red'>, 6, 1]"
+        test_str2 = "data[2] = [</span>3<span class='highlight-green'>, 6, 1]"
+        # verify input code is being escaped
+        test_str3 = "print(&#34;Incorrect num&#34;"
+        self.assertTrue(test_str1 in html_out)
+        self.assertTrue(test_str2 in html_out)
+        self.assertTrue(test_str3 in html_out)
+
     def test_compare_boilerplate(self):
         config = {
           "test_directories" : [os.path.dirname(__file__) + "/sample/code"],
