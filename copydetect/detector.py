@@ -115,14 +115,15 @@ def compare_files(file1_data, file2_data):
     if len(slices1[0]) == 0:
         return 0, (0,0), (np.array([]), np.array([]))
 
-    token_overlap = np.sum(slices1[1] - slices1[0])
+    token_overlap1 = np.sum(slices1[1] - slices1[0])
+    token_overlap2 = np.sum(slices2[1] - slices2[0])
 
     if len(file1_data.filtered_code) > 0:
-        similarity1 = token_overlap / len(file1_data.filtered_code)
+        similarity1 = token_overlap1 / len(file1_data.filtered_code)
     else:
         similarity1 = 0
     if len(file2_data.filtered_code) > 0:
-        similarity2 = token_overlap / len(file2_data.filtered_code)
+        similarity2 = token_overlap2 / len(file2_data.filtered_code)
     else:
         similarity2 = 0
 
@@ -135,7 +136,7 @@ def compare_files(file1_data, file2_data):
             np.searchsorted(file2_data.offsets[:,0], slices2),
             0, file2_data.offsets.shape[0] - 1)]
 
-    return token_overlap, (similarity1,similarity2), (slices1,slices2)
+    return token_overlap1, (similarity1,similarity2), (slices1,slices2)
 
 class CopyDetector:
     """Main plagairism detection class. Uses generic functions from
