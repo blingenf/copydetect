@@ -15,11 +15,11 @@
       <div class="col">
         <h4 style="text-align: center;">Similarity Matrix</h4>
         <img src="figures/sim_matrix.png" alt="Code similarity matrix">
-      </div class="col">
+      </div>
       <div class="col">
         <h4 style="text-align: center;">Similarity Score Distribution</h4>
         <img src="figures/sim_histogram.png" alt="Code similarity histogram">
-      </div class="col">
+      </div>
     </div>
     <p style="text-align: center">
       <i>Note: a score of -1 in the similarity matrix indicates the comparison was skipped</i>
@@ -37,8 +37,8 @@
   <tr>
   <td style="text-align: center;">
   <p>
-    Test file: <i>{{ code[2] }}</i> (<b>{{ "%.2f"|format(code[0]*100) }}%</b>)<br>
-    Reference file: <i>{{ code[3] }}</i> (<b>{{ "%.2f"|format(code[1]*100) }}%</b>)<br>
+    Test file: <i>{{ code[2]|e }}</i> (<b>{{ "%.2f"|format(code[0]*100) }}%</b>)<br>
+    Reference file: <i>{{ code[3]|e }}</i> (<b>{{ "%.2f"|format(code[1]*100) }}%</b>)<br>
     Token overlap: {{ code[6] }}<br><br>
     <button class="btn btn-secondary" type="button" data-toggle="collapse" data-target="#collapse-{{loop.index}}" aria-expanded="false" aria-controls="collapse-{{loop.index}}">
       View matched code
@@ -48,10 +48,10 @@
     <div class="card card-body">
       <div class="row">
         <div class="col" style="max-width: 600px">
-          <pre><code>{{ code[4] }}</code></pre>
+          <pre><code>{{ code[4]|e }}</code></pre>
         </div>
         <div class="col" style="max-width: 600px">
-          <pre><code>{{ code[5] }}</code></pre>
+          <pre><code>{{ code[5]|e }}</code></pre>
         </div>
       </div>
     </div>
