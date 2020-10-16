@@ -8,6 +8,7 @@ import pygments.util
 import numpy as np
 import time
 import logging
+from jinja2 import escape
 # if the C extention is available, use it. For almost all use cases
 # the speed difference is not significant so if the C extention isn't
 # found copydetect will silenty switch to the python implementation.
@@ -141,7 +142,7 @@ def find_fingerprint_overlap(hashes1, hashes2, idx1, idx2):
         return_indices=True, assume_unique=True)
     return idx1[ol_idx1], idx2[ol_idx2]
 
-def highlight_overlap(doc, slices, left_hl, right_hl):
+def highlight_overlap(doc, slices, left_hl, right_hl, escape_html=False):
     """Highlights copied code in a document given the slices containing
     copied code and strings to use for the highlight start and end.
     Returns the document annoted with the highlight strings as well as
@@ -149,15 +150,23 @@ def highlight_overlap(doc, slices, left_hl, right_hl):
     """
     hl_percent = np.sum(slices[1] - slices[0])/len(doc)
 
-    # update the string with escape code highlighting
-    added = 0
+    new_doc = ""
+    current_idx = 0
     for slice_idx in range(slices.shape[1]):
         start_idx = slices[0,slice_idx]
         end_idx = slices[1,slice_idx]
 
-        doc = doc[:start_idx+added] + left_hl + doc[start_idx+added:]
-        added += len(left_hl)
-        doc = doc[:end_idx+added] + right_hl + doc[end_idx+added:]
-        added += len(right_hl)
+        if escape_html:
+            new_doc += str(escape(doc[current_idx:start_idx]))
+            new_doc += left_hl + str(escape(doc[start_idx:end_idx])) + right_hl
+        else:
+            new_doc += doc[current_idx:start_idx]
+            new_doc += left_hl + doc[start_idx:end_idx] + right_hl
+        current_idx = end_idx
 
-    return doc, hl_percent
+    if escape_html:
+        new_doc += str(escape(doc[current_idx:]))
+    else:
+        new_doc += doc[current_idx:]
+
+    return new_doc, hl_percent

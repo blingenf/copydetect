@@ -18,7 +18,7 @@ from .utils import (filter_code, highlight_overlap, hashed_kgrams,
 import matplotlib.pyplot as plt
 import webbrowser
 import pkg_resources
-from jinja2 import Template, escape
+from jinja2 import Template
 from tqdm import tqdm
 
 class CodeFingerprint:
@@ -426,19 +426,20 @@ class CopyDetector:
             slices_ref = self.slice_matrix[x[idx]][y[idx]][1]
             hl_code_1, _ = highlight_overlap(
                 self.file_data[test_f].raw_code, slices_test,
-                "<span class='highlight-red'>", "</span>")
+                "<span class='highlight-red'>", "</span>", escape_html=True)
             hl_code_2, _ = highlight_overlap(
                 self.file_data[ref_f].raw_code, slices_ref,
-                "<span class='highlight-green'>", "</span>")
+                "<span class='highlight-green'>", "</span>", escape_html=True)
             overlap = self.token_overlap_matrix[x[idx],y[idx]]
 
             code_list.append([test_sim, ref_sim, test_f, ref_f,
-                              escape(hl_code_1), escape(hl_code_2), overlap])
+                              hl_code_1, hl_code_2, overlap])
 
         code_list.sort(key=lambda x: -x[0])
         return code_list
 
-    def generate_html_report(self, dir="report", page_name="report"):
+    def generate_html_report(self, dir="report", page_name="report",
+                             output_mode="save"):
         """Generates an html report listing all files with similarity
         above the display_threshold, with the copied code segments
         highlighted.
@@ -450,23 +451,24 @@ class CopyDetector:
         code_list = self.get_copied_code_list()
         data_dir = pkg_resources.resource_filename('copydetect', 'data/')
 
-        # make output directory, figures
-        if not os.path.exists(f"{dir}/figures/"):
-            os.makedirs(f"{dir}/figures/")
+        if output_mode == "save":
+            # make output directory, figures
+            if not os.path.exists(f"{dir}/figures/"):
+                os.makedirs(f"{dir}/figures/")
 
-        plot_mtx = np.copy(self.similarity_matrix)
-        plot_mtx[plot_mtx == -1] = np.nan
-        plt.imshow(plot_mtx)
-        plt.colorbar()
-        plt.tight_layout()
-        plt.savefig(f"{dir}/figures/sim_matrix.png")
-        plt.close()
+            plot_mtx = np.copy(self.similarity_matrix)
+            plot_mtx[plot_mtx == -1] = np.nan
+            plt.imshow(plot_mtx)
+            plt.colorbar()
+            plt.tight_layout()
+            plt.savefig(f"{dir}/figures/sim_matrix.png")
+            plt.close()
 
-        scores = self.similarity_matrix[self.similarity_matrix != -1]
-        plt.hist(scores, bins=20)
-        plt.tight_layout()
-        plt.savefig(f"{dir}/figures/sim_histogram.png")
-        plt.close()
+            scores = self.similarity_matrix[self.similarity_matrix != -1]
+            plt.hist(scores, bins=20)
+            plt.tight_layout()
+            plt.savefig(f"{dir}/figures/sim_histogram.png")
+            plt.close()
 
         # render template with jinja and save as html
         with open(data_dir + "report.html") as template_fp:
@@ -481,16 +483,16 @@ class CopyDetector:
                                  code_list=code_list,
                                  style_path=data_dir + "style.css")
 
-        output = output.replace('&lt;span class=&#39;highlight-red&#39;&gt;',
-                                '<span class="highlight-red">')
-        output = output.replace('&lt;span class=&#39;highlight-green&#39;&gt;',
-                                '<span class="highlight-green">')
+        if output_mode == "save":
+            with open(f"{dir}/{page_name}.html", "w") as report_f:
+                report_f.write(output)
 
-        with open(f"{dir}/{page_name}.html", "w") as report_f:
-            report_f.write(output)
-
-        if not self.silent:
-            print(f"Output saved to {dir}/{page_name}.html")
-        if self.autoopen:
-            webbrowser.open('file://'
-                            + os.path.realpath(f"{dir}/{page_name}.html"))
+            if not self.silent:
+                print(f"Output saved to {dir}/{page_name}.html")
+            if self.autoopen:
+                webbrowser.open('file://'
+                                + os.path.realpath(f"{dir}/{page_name}.html"))
+        elif output_mode == "return":
+            return output
+        else:
+            raise ValueError("output_mode not supported")
