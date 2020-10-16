@@ -35,7 +35,7 @@ Configuration options can be provided either by using the command line arguments
 - `disable_autoopen` (`-a`, `--disable-autoopen`):  if `true`, the detector will not automatically open a browser window to display the report.
 
 ## API
-For advanced use cases, copydetect provides an API for performing comparisons between files. An example of basic usage is provided below.
+For advanced use cases, copydetect provides an API for performing comparisons between files. An example of basic usage is provided below. API documentation is available [here](https://copydetect.readthedocs.io/en/latest/api.html).
 ```
 >>> import copydetect
 >>> fp1 = copydetect.CodeFingerprint("sample1.py", 25, 1)
