@@ -3,12 +3,12 @@
 ![Screenshot of copydetect code comparison output](docs/_static/report_screenshot1.png)
 
 ## Overview
-Copydetect is a code plagiarism detection tool based the approach proposed in "[Winnowing: Local Algorithms for Document Fingerprinting](http://theory.stanford.edu/~aiken/publications/papers/sigmod03.pdf)" and used for the popular [MOSS](https://theory.stanford.edu/~aiken/moss/) platform. Unlike MOSS, copydetect is designed to run entirely on the user's machine rather than an external server. The implementation takes advantage of fast numpy functions and a C implementation of the winnowing algorithm for efficient generation of results. Code tokenization is handled by [Pygments](https://pygments.org/), so all 500+ languages which pygments can detect and tokenize are in turn supported by copydetect.
+Copydetect is a code plagiarism detection tool based the approach proposed in "[Winnowing: Local Algorithms for Document Fingerprinting](http://theory.stanford.edu/~aiken/publications/papers/sigmod03.pdf)" and used for the popular [MOSS](https://theory.stanford.edu/~aiken/moss/) platform. Unlike MOSS, copydetect is designed to run entirely on the user's machine rather than an external server. The implementation takes advantage of fast numpy functions for efficient generation of results. Code tokenization is handled by [Pygments](https://pygments.org/), so all 500+ languages which pygments can detect and tokenize are in turn supported by copydetect.
 
 Note that, like MOSS, copydetect is designed to detect likely instances of plagiarism; it is not guaranteed to catch cheaters dedicated to evading it, and it does not provide a guarantee that plagiarism has occurred.
 
 ## Installation
-Copydetect can be installed by cloning the repository then using pip: `pip install ./copydetect`. You can then generate a report using the `copydetect` command.
+Copydetect can be installed by cloning the repository then using pip: `pip install copydetect`. You can then generate a report using the `copydetect` command.
 
 ## Usage
 The simplest usage is `copydetect -t DIRS`, where DIRS is a space-separated list of directories to search for input files. This will recursively search for all files in the provided directories and compare every file with every other file. To look only at specific file extensions, use `-e` followed by another space-separated list (for example, `copydetect -t student_code -e cc cpp h`)
@@ -35,7 +35,7 @@ Configuration options can be provided either by using the command line arguments
 - `disable_autoopen` (`-a`, `--disable-autoopen`):  if `true`, the detector will not automatically open a browser window to display the report.
 
 ## API
-For more advanced use cases, copydetect can also be used as a general API for comparing code files. Future versions of copydetect (hopefully by the end of the year) will improve the API and provide complete documentation for this functionality. Example usage is shown below:
+For advanced use cases, copydetect provides an API for performing comparisons between files. An example of basic usage is provided below.
 ```
 >>> import copydetect
 >>> fp1 = copydetect.CodeFingerprint("sample1.py", 25, 1)

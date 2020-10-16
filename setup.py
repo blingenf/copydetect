@@ -3,6 +3,11 @@ from setuptools import setup, Extension
 with open("README.md", "r") as readme_fp:
     readme = readme_fp.read()
 
+# NOTE
+# the C extension is not currently built for versions uploaded to PyPI.
+# Speedup is not meaningful and it makes cross-platform support quite
+# a bit more painful
+
 setup(name="copydetect",
       author="Bryson Lingenfelter",
       author_email="blingenfelter@nevada.unr.edu",
