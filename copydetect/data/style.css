@@ -1,0 +1,15 @@
+h1 {
+  text-align: center;
+}
+
+.highlight-green {
+  background-color: #b6f2b6;
+}
+
+.highlight-red {
+  background-color: #f2b6b6;
+}
+
+pre {
+  text-align: left;
+}

@@ -1,0 +1,9 @@
+{
+  "test_directories" : ["./submissions/fall_20"],
+  "reference_directories" : ["./submissions/fall_20", "./submissions/fall_19"],
+  "boilerplate_directories" : ["./boilerplate"],
+  "extensions" : ["py"],
+  "noise_threshold" : 25,
+  "guarantee_threshold" : 30,
+  "display_threshold" : 0.4
+}

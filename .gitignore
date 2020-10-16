@@ -1,0 +1,9 @@
+__pycache__
+*.py[cod]
+*.so
+
+build/
+dist/
+copydetect.egg-info/
+
+docs/_build
