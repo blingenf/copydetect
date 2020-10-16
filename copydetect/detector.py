@@ -18,7 +18,7 @@ from .utils import (filter_code, highlight_overlap, hashed_kgrams,
 import matplotlib.pyplot as plt
 import webbrowser
 import pkg_resources
-from jinja2 import Template
+from jinja2 import Template, escape
 from tqdm import tqdm
 
 class CodeFingerprint:
@@ -433,7 +433,7 @@ class CopyDetector:
             overlap = self.token_overlap_matrix[x[idx],y[idx]]
 
             code_list.append([test_sim, ref_sim, test_f, ref_f,
-                              hl_code_1, hl_code_2, overlap])
+                              escape(hl_code_1), escape(hl_code_2), overlap])
 
         code_list.sort(key=lambda x: -x[0])
         return code_list
@@ -480,6 +480,11 @@ class CopyDetector:
                                  flagged_file_count=flagged_file_count,
                                  code_list=code_list,
                                  style_path=data_dir + "style.css")
+
+        output = output.replace('&lt;span class=&#39;highlight-red&#39;&gt;',
+                                '<span class="highlight-red">')
+        output = output.replace('&lt;span class=&#39;highlight-green&#39;&gt;',
+                                '<span class="highlight-green">')
 
         with open(f"{dir}/{page_name}.html", "w") as report_f:
             report_f.write(output)

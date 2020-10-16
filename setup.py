@@ -11,7 +11,7 @@ with open("README.md", "r") as readme_fp:
 setup(name="copydetect",
       author="Bryson Lingenfelter",
       author_email="blingenfelter@nevada.unr.edu",
-      version="0.1.1",
+      version="0.1.2",
       description="Code plagiarism detection tool",
       long_description=readme,
       long_description_content_type="text/markdown",
