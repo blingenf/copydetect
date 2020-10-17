@@ -8,7 +8,7 @@ Copydetect is a code plagiarism detection tool based on the approach proposed in
 Note that, like MOSS, copydetect is designed to detect likely instances of plagiarism; it is not guaranteed to catch cheaters dedicated to evading it, and it does not provide a guarantee that plagiarism has occurred.
 
 ## Installation
-Copydetect can be installed using `pip install copydetect`. Note that Python version 3.6 or greater is required. You can then generate a report using the `copydetect` command.
+Copydetect can be installed using `pip install copydetect`. Note that Python version 3.6 or greater is required. You can then generate a report using the `copydetect` command (`copydetect.exe` on Windows. If your scripts folder is not in your PATH the code can also be run using `py.exe -m copydetect`).
 
 ## Usage
 The simplest usage is `copydetect -t DIRS`, where DIRS is a space-separated list of directories to search for input files. This will recursively search for all files in the provided directories and compare every file with every other file. To look only at specific file extensions, use `-e` followed by another space-separated list (for example, `copydetect -t student_code -e cc cpp h`)
