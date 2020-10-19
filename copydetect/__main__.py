@@ -1,4 +1,5 @@
 from .detector import CopyDetector
+from . import __version__
 import numpy as np
 import os
 import sys
@@ -51,6 +52,9 @@ def main():
     parser.add_argument("-a", '--disable-autoopen', dest='autoopen',
                         action='store_true', default=False,
                         help="disable browser autoopen")
+    parser.add_argument('--version', action='version',
+                        version="copydetect v" + __version__,
+                        help="print version number and exit")
     args = parser.parse_args()
 
     if args.conf:
