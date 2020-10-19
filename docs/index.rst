@@ -22,7 +22,7 @@ Note that, like MOSS, copydetect is designed to detect likely instances of plagi
 ============
 Installation
 ============
-Copydetect can be installed using ``pip install copydetect``. Note that Python version 3.6 or greater is required. You can then generate a report using the ``copydetect`` command.
+Copydetect can be installed using ``pip install copydetect``. Note that Python version 3.6 or greater is required. You can then generate a report using the ``copydetect`` command (``copydetect.exe`` on Windows. If your scripts folder is not in your PATH the code can also be run using ``py.exe -m copydetect``).
 
 Indices and tables
 ==================

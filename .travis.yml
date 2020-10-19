@@ -1,0 +1,25 @@
+language: python
+jobs:
+  include:
+    - name: "Python 3.6 on Xenial Linux"
+      python: 3.6
+    - name: "Python 3.8 on Xenial Linux"
+      python: 3.8
+    - name: "Python 3.7.4 on macOS"
+      os: osx
+      osx_image: xcode11.2
+      language: shell
+      before_install:
+        - pip3 install --user -r requirements.txt
+    - name: "Python 3.6.8 on Windows"
+      os: windows
+      language: shell
+      before_install:
+        - choco install python --version 3.6.8
+        - python -m pip install --upgrade pip
+        - pip3 install --user -r requirements.txt
+      env: PATH=/c/Python36:/c/Python36/Scripts:$PATH
+install:
+  - pip3 install --upgrade pip
+  - pip3 install .
+script: python3 -m pytest || python -m pytest

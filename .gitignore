@@ -7,3 +7,5 @@ dist/
 copydetect.egg-info/
 
 docs/_build
+
+.cache

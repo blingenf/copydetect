@@ -2,7 +2,15 @@
 to build, the tests will fail with a ModuleNotFoundError.
 """
 
-from copydetect.winnow import _winnow
+try:
+    from copydetect.winnow import _winnow
+except (ModuleNotFoundError, ImportError):
+    # issues with the C extension are just ignored for now because
+    # versions uploaded to pypi do not use the c extension
+    import warnings
+    warnings.warn(ImportWarning("Failed to import c extensions. "
+                                "Falling back to python implementation."))
+    from copydetect.pywinnow import _winnow
 import numpy as np
 import unittest
 
@@ -51,7 +59,8 @@ class WinnowDensityTestCase(unittest.TestCase):
         for win_size in range(2, 20):
             expected_density = 2/(win_size + 1)*10000
             rand_hashes = np.random.randint(-9223372036854775808,
-                                             9223372036854775807, 10000)
+                                             9223372036854775807, 10000,
+                                             dtype=np.int64)
             density = len(_winnow(rand_hashes, win_size))
 
             if not (density > expected_density - 200 and

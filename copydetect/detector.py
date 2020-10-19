@@ -181,7 +181,8 @@ class CopyDetector:
 
         self._check_arguments()
 
-        self.test_files, self.ref_files = self._get_input_files()
+        self.test_files = self._get_file_list(self.test_dirs, self.extensions)
+        self.ref_files = self._get_file_list(self.ref_dirs, self.extensions)
         self.all_files = self.test_files + [f for f in self.ref_files
                                             if f not in self.test_files]
         self.boilerplate_hashes = self._get_boilerplate_hashes()
@@ -230,46 +231,45 @@ class CopyDetector:
         if self.display_t > 1 or self.display_t < 0:
             raise ValueError("Display threshold must be between 0 and 1")
 
-    def _get_input_files(self):
-        """Searches for files in the test and compare directories
-        to generate the list used by the core comparison code.
-        Returns a list of test files and a list of compare files.
+    def _get_file_list(self, dirs, exts, unique=True):
+        """Recursively collects list of files from provided
+        directories. Used to search test_dirs, ref_dirs, and
+        boilerplate_dirs
         """
-        test_files = []
-        ref_files = []
-        for dir in self.test_dirs:
-            for ext in self.extensions:
-                files = list(Path(dir).rglob("*."+ext.lstrip(".")))
-                if len(files) == 0:
-                    logging.warning("No files found in " + dir)
-                test_files.extend(files)
-        for dir in self.ref_dirs:
-            for ext in self.extensions:
-                files = list(Path(dir).rglob("*."+ext.lstrip(".")))
-                if len(files) == 0:
-                    logging.warning("No files found in " + dir)
-                ref_files.extend(files)
+        file_list = []
+        for dir in dirs:
+            for ext in exts:
+                if ext == "*":
+                    matched_contents = Path(dir).rglob("*")
+                else:
+                    matched_contents = Path(dir).rglob("*."+ext.lstrip("."))
+                files = [str(f) for f in matched_contents if f.is_file()]
 
-        # remove any duplicates, then convert to sorted list
-        return (sorted(list(set([str(f) for f in test_files]))),
-                sorted(list(set([str(f) for f in ref_files]))))
+                if len(files) == 0:
+                    logging.warning("No files found in " + dir)
+                file_list.extend(files)
+
+        if unique:
+            file_list = list(set(file_list))
+
+        return sorted(file_list)
 
     def _get_boilerplate_hashes(self):
         """Generates a list of hashes of the boilerplate text. Returns
         a set containing all unique k-gram hashes across all files
         found in the boilerplate directories.
         """
-        boilerplate_files = []
-        for dir in self.boilerplate_dirs:
-            files = list(Path(dir).rglob("*"))
-            if len(files) == 0:
-                logging.warning("No files found in " + dir)
-            boilerplate_files.extend(files)
+        boilerplate_files = self._get_file_list(self.boilerplate_dirs,
+                                                self.extensions)
 
         boilerplate_hashes = []
-        for file in sorted(list(set([str(f) for f in boilerplate_files]))):
-            with open(file) as boilerplate_fp:
-                boilerplate = boilerplate_fp.read()
+        for file in boilerplate_files:
+            try:
+                with open(file) as boilerplate_fp:
+                    boilerplate = boilerplate_fp.read()
+            except UnicodeDecodeError:
+                logging.warning(f"Skipping {file}: file not ASCII text")
+                continue
             if not self.disable_filtering:
                 filtered_code, offsets = filter_code(boilerplate, file)
             else:
