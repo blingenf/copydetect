@@ -1,0 +1,6 @@
+numpy
+matplotlib
+jinja2
+pygments
+tqdm
+pytest
