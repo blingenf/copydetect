@@ -2,7 +2,15 @@
 to build, the tests will fail with a ModuleNotFoundError.
 """
 
-from copydetect.winnow import _winnow
+try:
+    from copydetect.winnow import _winnow
+except (ModuleNotFoundError, ImportError):
+    # issues with the C extension are just ignored for now because
+    # versions uploaded to pypi do not use the c extension
+    import warnings
+    warnings.warn(ImportWarning("Failed to import c extensions. "
+                                "Falling back to python implementation."))
+    from copydetect.pywinnow import _winnow
 import numpy as np
 import unittest
 

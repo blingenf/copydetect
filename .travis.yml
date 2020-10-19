@@ -9,15 +9,17 @@ jobs:
       os: osx
       osx_image: xcode11.2
       language: shell
-    - name: "Python 3.6.12 on Windows"
+      before_install:
+        - pip3 install --user -r requirements.txt
+    - name: "Python 3.6.8 on Windows"
       os: windows
       language: shell
       before_install:
-        - choco install python --version 3.6.12
+        - choco install python --version 3.6.8
         - python -m pip install --upgrade pip
-      env: PATH=/c/Python38:/c/Python38/Scripts:$PATH
+        - pip3 install --user -r requirements.txt
+      env: PATH=/c/Python36:/c/Python36/Scripts:$PATH
 install:
   - pip3 install --upgrade pip
-  - pip3 install --user -r requirements.txt
-  - pip3 install --user .
+  - pip3 install .
 script: python3 -m pytest || python -m pytest
