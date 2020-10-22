@@ -39,6 +39,17 @@ class TestTwoFileDetection():
         assert test_str2 in html_out
         assert test_str3 in html_out
 
+    def test_compare_manual_config(self):
+        detector = CopyDetector(noise_t=25, guarantee_t=25, silent=True)
+        detector.add_file(str(Path(__file__).parent)+"/sample/code/sample1.py")
+        detector.add_file(str(Path(__file__).parent)+"/sample/code/sample2.py")
+        detector.run()
+
+        assert np.array_equal(np.array([[-1,1137/2052],[1137/1257,-1]]),
+                              detector.similarity_matrix)
+        assert np.array_equal(np.array([[-1,1137],[1137,-1]]),
+                              detector.token_overlap_matrix)
+
     def test_compare_saving(self, tmpdir):
         config = {
           "test_directories" : [str(Path(__file__).parent) + "/sample/code"],

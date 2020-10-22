@@ -143,58 +143,64 @@ class CopyDetector:
     copy_detect to detect copying from a set of reference files to a
     set of test files
     """
-    def __init__(self, config, silent=False):
-        self.config = config
+    def __init__(self, config=None, test_dirs=[], ref_dirs=[],
+                 boilerplate_dirs=[], extensions=["*"],
+                 noise_t=25, guarantee_t=30, display_t=0.33,
+                 same_name_only=False, ignore_leaf=False, autoopen=True,
+                 disable_filtering=False, silent=False):
         self.silent = silent
+        self.test_dirs = test_dirs
+        if len(ref_dirs) == 0:
+            self.ref_dirs = test_dirs
+        else:
+            self.ref_dirs = ref_dirs
+        self.boilerplate_dirs = boilerplate_dirs
+        self.extensions = extensions
+        self.noise_t = noise_t
+        self.guarantee_t = guarantee_t
+        self.display_t = display_t
+        self.same_name_only = same_name_only
+        self.ignore_leaf = ignore_leaf
+        self.autoopen = autoopen
+        self.disable_filtering = disable_filtering
 
-        self.noise_t = self.config["noise_threshold"]
-        self.guarantee_t = self.config["guarantee_threshold"]
-        self.display_t = self.config["display_threshold"]
-        self.window_size = self.guarantee_t - self.noise_t + 1
-        self.test_dirs = self.config["test_directories"]
-        if "reference_directories" in self.config:
-            self.ref_dirs = self.config["reference_directories"]
-        else:
-            self.ref_dirs = self.test_dirs
-        self.extensions = self.config["extensions"]
-
-        if "boilerplate_directories" in self.config:
-            self.boilerplate_dirs = self.config["boilerplate_directories"]
-        else:
-            self.boilerplate_dirs = []
-        if "same_name_only" in self.config:
-            self.same_name_only = self.config["same_name_only"]
-        else:
-            self.same_name_only = False
-        if "ignore_leaf" in self.config:
-            self.ignore_leaf = self.config["ignore_leaf"]
-        else:
-            self.ignore_leaf = False
-        if "disable_filtering" in self.config:
-            self.disable_filtering = self.config["disable_filtering"]
-        else:
-            self.disable_filtering = False
-        if "disable_autoopen" in self.config:
-            self.autoopen = not self.config["disable_autoopen"]
-        else:
-            self.autoopen = True
+        if config is not None:
+            self._load_config(config)
 
         self._check_arguments()
 
+        self.window_size = self.guarantee_t - self.noise_t + 1
+
         self.test_files = self._get_file_list(self.test_dirs, self.extensions)
         self.ref_files = self._get_file_list(self.ref_dirs, self.extensions)
-        self.all_files = self.test_files + [f for f in self.ref_files
-                                            if f not in self.test_files]
-        self.boilerplate_hashes = self._get_boilerplate_hashes()
+        self.boilerplate_files = self._get_file_list(self.boilerplate_dirs,
+                                                     self.extensions)
 
-        self.session_id = hashlib.md5((
-            "".join(self.test_files + self.ref_files) +
-            "".join([key+str(val) for key,val in self.config.items()
-                     if key not in ["display_threshold", "disable_autoopen"]])
-            ).encode()).hexdigest()
+    def _load_config(self, config):
+        """Sets member variables according to a configuration
+        dictionary.
+        """
+        self.noise_t = config["noise_threshold"]
+        self.guarantee_t = config["guarantee_threshold"]
+        self.display_t = config["display_threshold"]
+        self.test_dirs = config["test_directories"]
+        if "reference_directories" in config:
+            self.ref_dirs = config["reference_directories"]
+        if "extensions" in config:
+            self.extensions = config["extensions"]
+        if "boilerplate_directories" in config:
+            self.boilerplate_dirs = config["boilerplate_directories"]
+        if "same_name_only" in config:
+            self.same_name_only = config["same_name_only"]
+        if "ignore_leaf" in config:
+            self.ignore_leaf = config["ignore_leaf"]
+        if "disable_filtering" in config:
+            self.disable_filtering = config["disable_filtering"]
+        if "disable_autoopen" in config:
+            self.autoopen = not config["disable_autoopen"]
 
     def _check_arguments(self):
-        """type checking helper function for __init__"""
+        """type/value checking helper function for __init__"""
         if not isinstance(self.test_dirs, list):
             raise TypeError("Test directories must be a list")
         if not isinstance(self.ref_dirs, list):
@@ -225,7 +231,7 @@ class CopyDetector:
                 raise TypeError("Guarantee threshold must be an integer")
 
         # value checking
-        if self.window_size < 1:
+        if self.guarantee_t < self.noise_t:
             raise ValueError("Guarantee threshold must be greater than or "
                              "equal to noise threshold")
         if self.display_t > 1 or self.display_t < 0:
@@ -249,21 +255,31 @@ class CopyDetector:
                     logging.warning("No files found in " + dir)
                 file_list.extend(files)
 
-        if unique:
-            file_list = list(set(file_list))
+        return set(file_list)
 
-        return sorted(file_list)
+    def add_file(self, filename, type="testref"):
+        """Adds a file to the list of test files, reference files, or
+        boilerplate files. The "type" parameter should be one of
+        ["testref", "test", "ref", "boilerplate"]. "testref" will add
+        the file as both a test and reference file.
+        """
+        if type == "testref":
+            self.test_files.add(filename)
+            self.ref_files.add(filename)
+        elif type == "test":
+            self.test_files.add(filename)
+        elif type == "ref":
+            self.ref_files.add(filename)
+        elif type == "boilerplate":
+            self.boilerplate_files.add(filename)
 
     def _get_boilerplate_hashes(self):
         """Generates a list of hashes of the boilerplate text. Returns
         a set containing all unique k-gram hashes across all files
         found in the boilerplate directories.
         """
-        boilerplate_files = self._get_file_list(self.boilerplate_dirs,
-                                                self.extensions)
-
         boilerplate_hashes = []
-        for file in boilerplate_files:
+        for file in self.boilerplate_files:
             try:
                 with open(file) as boilerplate_fp:
                     boilerplate = boilerplate_fp.read()
@@ -279,31 +295,16 @@ class CopyDetector:
 
         return np.unique(np.array(boilerplate_hashes))
 
-    def save_session(self):
-        """Caches a current detector session (similarity matrix and
-        highlighted code slices). The session ID is a hash of the test
-        + reference files and any configuration settings which would
-        alter the file comparison process.
-        """
-        if not os.path.exists("cache/"+self.session_id):
-            os.makedirs("cache/"+self.session_id)
-        np.save(f"cache/{self.session_id}/sim_mtx.npy", self.similarity_matrix)
-        np.save(f"cache/{self.session_id}/token_mtx.npy",
-                self.token_overlap_matrix)
-        with open(f"cache/{self.session_id}/slices.pkl", "wb") as pkl_fp:
-            pickle.dump(self.slice_matrix, pkl_fp)
+    def _preprocess_code(self, file_list):
+        boilerplate_hashes = self._get_boilerplate_hashes()
 
-    def _preprocess_code(self):
-        """Tokenize, filter, hash, and winnow all test and compare
-        files for use in copy detection.
-        """
         file_data = {}
-        for code_f in tqdm(set(self.test_files + self.ref_files),
-                bar_format= '   {l_bar}{bar}{r_bar}', disable=self.silent):
+        for code_f in tqdm(file_list, bar_format= '   {l_bar}{bar}{r_bar}',
+                disable=self.silent):
             try:
                 file_data[code_f] = CodeFingerprint(
                     code_f, self.noise_t, self.window_size,
-                    self.boilerplate_hashes, not self.disable_filtering)
+                    boilerplate_hashes, not self.disable_filtering)
 
             except UnicodeDecodeError:
                 logging.warning(f"Skipping {code_f}: file not ASCII text")
@@ -321,13 +322,22 @@ class CopyDetector:
         start_time = time.time()
         if not self.silent:
             print("  0.00: Generating file fingerprints")
-        self.file_data = self._preprocess_code()
+        test_f_list = sorted(list(self.test_files))
+        self.all_files = (test_f_list
+            + sorted([f for f in self.ref_files if f not in self.test_files]))
+        self.file_data = self._preprocess_code(self.all_files)
+
+        self.similarity_matrix = np.full((
+            len(self.all_files), len(self.all_files)), -1, dtype=np.float64)
+        self.token_overlap_matrix = np.full((
+            len(self.all_files), len(self.all_files)), -1)
+        self.slice_matrix = [[np.array([]) for _ in range(len(self.all_files))]
+                             for _ in range(len(self.all_files))]
 
         if not self.silent:
             print(f"{time.time()-start_time:6.2f}: Beginning code comparison")
 
-        bad_files = [] # files which couldn't be loaded and should be skipped
-        for i, test_f in enumerate(tqdm(self.test_files,
+        for i, test_f in enumerate(tqdm(test_f_list,
                 bar_format= '   {l_bar}{bar}{r_bar}', disable=self.silent)):
             for j, ref_f in enumerate(self.all_files):
                 if test_f not in self.file_data or ref_f not in self.file_data:
@@ -377,24 +387,6 @@ class CopyDetector:
             self.token_overlap_matrix = np.array([])
             self.slice_matrix = np.array([])
             return
-
-        if os.path.exists("cache/"+self.session_id):
-            if not self.silent:
-                print("Resuming from previous session at cache/"
-                      f"{self.session_id}/")
-            self.similarity_matrix = np.load(
-                f"cache/{self.session_id}/sim_mtx.npy")
-            self.token_overlap_matrix = np.load(
-                f"cache/{self.session_id}/token_mtx.npy")
-            with open(f"cache/{self.session_id}/slices.pkl", "rb") as pkl_fp:
-                self.slice_matrix = pickle.load(pkl_fp)
-        else:
-            self.similarity_matrix = np.full((
-                len(self.all_files),len(self.all_files)), -1, dtype=np.float64)
-            self.token_overlap_matrix = np.full((
-                len(self.all_files),len(self.all_files)), -1)
-            self.slice_matrix = [[[] for _ in range(len(self.all_files))]
-                                 for _ in range(len(self.all_files))]
 
         self._comparison_loop()
 
@@ -474,7 +466,7 @@ class CopyDetector:
         with open(data_dir + "report.html") as template_fp:
             template = Template(template_fp.read())
 
-        flagged = self.similarity_matrix > self.config["display_threshold"]
+        flagged = self.similarity_matrix > self.display_t
         flagged_file_count = np.sum(np.any(flagged, axis=1))
 
         output = template.render(test_count=len(self.test_files),
