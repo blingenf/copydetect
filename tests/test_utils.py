@@ -2,12 +2,13 @@
 
 import copydetect.utils as cd
 import numpy as np
-import unittest
+import pytest
 
-class SmallDocTestCase(unittest.TestCase):
+class TestSmallDoc():
     """Test the copy detection pipeline for two simple strings"""
 
-    def setUp(self):
+    @pytest.fixture(autouse=True)
+    def _testcase_variables(self):
         self.doc1 = "helloabcdefghijklmnop"
         self.doc2 = "asdafhellonopfdvcdef"
         self.boilerplate = cd.hashed_kgrams("nope", 3)
@@ -15,27 +16,20 @@ class SmallDocTestCase(unittest.TestCase):
     def test_doc_overlap(self):
         fp1, idx1 = cd.get_document_fingerprints(self.doc1, 3, 1)
         fp2, idx2 = cd.get_document_fingerprints(self.doc2, 3, 1)
-        overlap_1, overlap_2 = cd.find_fingerprint_overlap(fp1, fp2,
-                                                                   idx1, idx2)
+        overlap_1,overlap_2 = cd.find_fingerprint_overlap(fp1, fp2, idx1, idx2)
 
-        test1 = np.array_equal(np.sort(overlap_1), np.array([0,1,2,7,8,18]))
-        test2 = np.array_equal(np.sort(overlap_2), np.array([5,6,7,10,16,17]))
-
-        self.assertTrue(test1)
-        self.assertTrue(test2)
+        assert np.array_equal(np.sort(overlap_1), np.array([0,1,2,7,8,18]))
+        assert np.array_equal(np.sort(overlap_2), np.array([5,6,7,10,16,17]))
 
     def test_doc_overlap_boilerplate(self):
         fp1, idx1 = cd.get_document_fingerprints(self.doc1, 3, 1,
-                                                         self.boilerplate)
+                                                 self.boilerplate)
         fp2, idx2 = cd.get_document_fingerprints(self.doc2, 3, 1,
-                                                         self.boilerplate)
+                                                 self.boilerplate)
         overlap_1,overlap_2 = cd.find_fingerprint_overlap(fp1, fp2, idx1, idx2)
 
-        test1 = np.array_equal(np.sort(overlap_1), np.array([0,1,2,7,8]))
-        test2 = np.array_equal(np.sort(overlap_2), np.array([5,6,7,16,17]))
-
-        self.assertTrue(test1)
-        self.assertTrue(test2)
+        assert np.array_equal(np.sort(overlap_1), np.array([0,1,2,7,8]))
+        assert np.array_equal(np.sort(overlap_2), np.array([5,6,7,16,17]))
 
     def test_slice_computation(self):
         fp1, idx1 = cd.get_document_fingerprints(self.doc1, 3, 1)
@@ -45,11 +39,8 @@ class SmallDocTestCase(unittest.TestCase):
         slices1 = cd.get_copied_slices(overlap_1, 3)
         slices2 = cd.get_copied_slices(overlap_2, 3)
 
-        test1 = np.array_equal(slices1, np.array([[0,7,18], [5,11,21]]))
-        test2 = np.array_equal(slices2, np.array([[5,10,16],[10,13,20]]))
-
-        self.assertTrue(test1)
-        self.assertTrue(test2)
+        assert np.array_equal(slices1, np.array([[0,7,18], [5,11,21]]))
+        assert np.array_equal(slices2, np.array([[5,10,16],[10,13,20]]))
 
     def test_highlighting(self):
         fp1, idx1 = cd.get_document_fingerprints(self.doc1, 3, 1)
@@ -62,17 +53,18 @@ class SmallDocTestCase(unittest.TestCase):
         hl1, similarity1 = cd.highlight_overlap(self.doc1, slices1, '->', '<')
         hl2, similarity2 = cd.highlight_overlap(self.doc2, slices2, '->', '<')
 
-        self.assertEqual(hl1, "->hello<ab->cdef<ghijklm->nop<")
-        self.assertEqual(hl2, "asdaf->hello<->nop<fdv->cdef<")
-        self.assertEqual(12/21, similarity1)
-        self.assertEqual(12/20, similarity2)
+        assert hl1 == "->hello<ab->cdef<ghijklm->nop<"
+        assert hl2 == "asdaf->hello<->nop<fdv->cdef<"
+        assert 12/21 == similarity1
+        assert 12/20 == similarity2
 
-class TokenizerTestCase(unittest.TestCase):
+class TestTokenizer():
     """Test code tokenization, filtering, and copy detection on a small
     example function.
     """
 
-    def setUp(self):
+    @pytest.fixture(autouse=True)
+    def _testcase_variables(self):
         sample1 = ("def hashed_kgrams(string, k):\n"
                    "    \"\"\"Return hashes of all k-grams in string\"\"\"\n"
                    "    hashes = [hash(string[offset:offset+k])\n"
@@ -96,8 +88,8 @@ class TokenizerTestCase(unittest.TestCase):
 
         out_code, offsets = cd.filter_code(self.sample_code, "test.py")
 
-        self.assertEqual(out_code, expected_out)
-        self.assertTrue(np.array_equal(np.array(offsets), expected_offsets))
+        assert out_code == expected_out
+        assert np.array_equal(np.array(offsets), expected_offsets)
 
     def test_copydetect(self):
         out_code1, offsets1 = cd.filter_code(self.sample_code, "1.py")
@@ -132,10 +124,7 @@ class TokenizerTestCase(unittest.TestCase):
                   "    >h = [hash(s[o:o+k]) for o in range(len(s)-k+1)]\n"
                   "    return np.array(h)<")
 
-        self.assertEqual(similarity1, 123/len(self.sample_code))
-        self.assertEqual(similarity2, 70/len(self.sample_copied_code))
-        self.assertEqual(hl_code1, gt_hl1)
-        self.assertEqual(hl_code2, gt_hl2)
-
-if __name__ == '__main__':
-    unittest.main()
+        assert similarity1 == 123/len(self.sample_code)
+        assert similarity2 == 70/len(self.sample_copied_code)
+        assert hl_code1 == gt_hl1
+        assert hl_code2 == gt_hl2
