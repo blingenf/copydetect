@@ -1,7 +1,24 @@
 API
 ======================================
 
-For advanced use cases, copydetect provides an API for performing comparisons between files. An example of basic usage is provided below.
+Copydetect can also be run via the python API. An example of basic usage is provided below.
+
+.. code-block:: python
+
+    >>> from copydetect import CopyDetector
+    >>> detector = CopyDetector(test_dirs=["tests"], extensions=["py"],
+    ...                         display_t=0.5)
+    >>> detector.add_file("copydetect/utils.py")
+    >>> detector.run()
+      0.00: Generating file fingerprints
+       100%|████████████████████████████████████████████████████| 8/8
+      0.31: Beginning code comparison
+       100%|██████████████████████████████████████████████████| 8/8
+      0.31: Code comparison completed
+    >>> detector.generate_html_report()
+    Output saved to report/report.html
+
+For advanced use cases, the API contains a ``CodeFingerprint`` class for performing general file comparisons. An example of basic usage is provided below:
 
 .. code-block:: python
 

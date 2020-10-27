@@ -139,9 +139,62 @@ def compare_files(file1_data, file2_data):
     return token_overlap1, (similarity1,similarity2), (slices1,slices2)
 
 class CopyDetector:
-    """Main plagairism detection class. Uses generic functions from
-    copy_detect to detect copying from a set of reference files to a
-    set of test files
+    """Main plagairism detection class. Searches provided directories
+    and uses detection parameters to calculate similarity between all
+    files found in the directories
+
+    Parameters
+    ----------
+    config : dict
+        Dictionary containing configuration parameters. Note that this
+        uses the verbose version of each of the parameters listed
+        below. If provided, parameters set in the configuration
+        dictionary will overwrite default parameters and other
+        parameters passed to the initialization function.
+    test_dirs : list
+        (test_directories) A list of directories to recursively search
+        for files to check for plagiarism.
+    ref_dirs: list
+        (reference_directories) A list of directories to search for
+        files to compare the test files to. This should generally be a
+        superset of test_directories
+    boilerplate_dirs : list
+        (boilerplate_directories) A list of directories containing
+        boilerplate code. Matches between fingerprints present in the
+        boilerplate code will not be considered plagiarism.
+    extensions : list
+        A list of file extensions containing code the detector should
+        look at.
+    noise_t : int
+        (noise_threshold) The smallest sequence of matching characters
+        between two files which should be considered plagiarism. Note
+        that tokenization and filtering replaces variable names with V,
+        function names with F, object names with O, and strings with S
+        so the threshold should be lower than you would expect from the
+        original code.
+    guarantee_t : int
+        (guarantee_threshold) The smallest sequence of matching
+        characters between two files for which the system is guaranteed
+        to detect a match. This must be greater than or equal to the
+        noise threshold. If computation time is not an issue, you can
+        set guarantee_threshold = noise_threshold.
+    display_t : float
+        (display_threshold) The similarity percentage cutoff for
+        displaying similar files on the detector report.
+    same_name_only : bool
+        If true, the detector will only compare files that have the
+        same name
+    ignore_leaf : bool
+        If true, the detector will not compare files located in the
+        same leaf directory.
+    autoopen : bool
+        If true, the detector will automatically open a webbrowser to
+        display the results of generate_html_report
+    disable_filtering : bool
+        If true, the detector will not tokenize and filter code before
+        generating file fingerprints.
+    silent : bool
+        If true, all logging output will be supressed.
     """
     def __init__(self, config=None, test_dirs=[], ref_dirs=[],
                  boilerplate_dirs=[], extensions=["*"],
