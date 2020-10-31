@@ -17,7 +17,7 @@ try:
 except (ModuleNotFoundError, ImportError):
     from .pywinnow import _winnow
 
-def filter_code(code, filename):
+def filter_code(code, filename, language=None):
     """Tokenize and filter a code document. Replace variable names with
     V, function names with F, object names with O, and strings with S.
     Return the filtered document and a list of offsets indicating how
@@ -27,7 +27,10 @@ def filter_code(code, filename):
     the filtered code)
     """
     try:
-        lexer = lexers.get_lexer_for_filename(filename)
+        if language is not None:
+            lexer = lexers.get_lexer_by_name(language)
+        else:
+            lexer = lexers.get_lexer_for_filename(filename)
         tokens = lexer.get_tokens(code)
     except pygments.util.ClassNotFound:
         logging.warning(f"{filename} not tokenized: unknown file extension")

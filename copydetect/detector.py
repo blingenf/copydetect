@@ -12,9 +12,8 @@ import os
 import pickle
 import sys
 import logging
-from .utils import (filter_code, highlight_overlap, hashed_kgrams,
-                    get_document_fingerprints, get_copied_slices,
-                    find_fingerprint_overlap)
+from .utils import (filter_code, highlight_overlap, get_copied_slices,
+                    get_document_fingerprints, find_fingerprint_overlap)
 import matplotlib.pyplot as plt
 import webbrowser
 import pkg_resources
@@ -61,12 +60,16 @@ class CodeFingerprint:
         translating hash indexes to indexes in the filtered code.
     k : int
         Value of provided k argument.
+    language : str
+        If set, will force the tokenizer to use the provided language
+        rather than guessing from the file extension.
     """
-    def __init__(self, file, k, win_size, boilerplate=[], filter=True):
+    def __init__(self, file, k, win_size, boilerplate=[], filter=True,
+                 language=None):
         with open(file) as code_fp:
             code = code_fp.read()
         if filter:
-            filtered_code, offsets = filter_code(code, file)
+            filtered_code, offsets = filter_code(code, file, language)
         else:
             filtered_code, offsets = code, np.array([])
         hashes, idx = get_document_fingerprints(filtered_code, k, win_size,
@@ -193,6 +196,9 @@ class CopyDetector:
     disable_filtering : bool
         If true, the detector will not tokenize and filter code before
         generating file fingerprints.
+    force_language : str
+        If set, forces the tokenizer to use a particular programming
+        language regardless of the file extension.
     silent : bool
         If true, all logging output will be supressed.
     """
@@ -200,7 +206,7 @@ class CopyDetector:
                  boilerplate_dirs=[], extensions=["*"],
                  noise_t=25, guarantee_t=30, display_t=0.33,
                  same_name_only=False, ignore_leaf=False, autoopen=True,
-                 disable_filtering=False, silent=False):
+                 disable_filtering=False, force_language=None, silent=False):
         self.silent = silent
         self.test_dirs = test_dirs
         if len(ref_dirs) == 0:
@@ -216,6 +222,7 @@ class CopyDetector:
         self.ignore_leaf = ignore_leaf
         self.autoopen = autoopen
         self.disable_filtering = disable_filtering
+        self.force_language = force_language
 
         if config is not None:
             self._load_config(config)
@@ -339,12 +346,10 @@ class CopyDetector:
             except UnicodeDecodeError:
                 logging.warning(f"Skipping {file}: file not ASCII text")
                 continue
-            if not self.disable_filtering:
-                filtered_code, offsets = filter_code(boilerplate, file)
-            else:
-                filtered_code, offsets = boilerplate, []
-            boilerplate_hashes.extend(hashed_kgrams(filtered_code,
-                                                    self.noise_t))
+            fingerprint = CodeFingerprint(file, self.noise_t, 1,
+                                          filter=not self.disable_filtering,
+                                          language=self.force_language)
+            boilerplate_hashes.extend(fingerprint.hashes)
 
         return np.unique(np.array(boilerplate_hashes))
 
@@ -357,7 +362,8 @@ class CopyDetector:
             try:
                 file_data[code_f] = CodeFingerprint(
                     code_f, self.noise_t, self.window_size,
-                    boilerplate_hashes, not self.disable_filtering)
+                    boilerplate_hashes, not self.disable_filtering,
+                    self.force_language)
 
             except UnicodeDecodeError:
                 logging.warning(f"Skipping {code_f}: file not ASCII text")
