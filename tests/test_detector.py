@@ -163,7 +163,8 @@ class TestParameters():
                                 disable_filtering=True, silent=True)
         detector.run()
 
-        fingerprint1 = detector.file_data[tests_dir+"/sample/code/sample1.py"]
+        fingerprint1 = detector.file_data[
+            str(Path(tests_dir+"/sample/code/sample1.py"))]
         assert fingerprint1.raw_code == fingerprint1.filtered_code
 
     def test_force_language(self):
@@ -171,7 +172,8 @@ class TestParameters():
                                 force_language="java", silent=True)
         detector.run()
 
-        fingerprint1 = detector.file_data[tests_dir+"/sample/handout.py"]
+        fingerprint1 = detector.file_data[
+            str(Path(tests_dir+"/sample/handout.py"))]
 
         # "#" isn't a comment in java, so it won't be removed
         assert fingerprint1.filtered_code[0] == "#"
