@@ -250,6 +250,8 @@ class CopyDetector:
             self.extensions = config["extensions"]
         if "boilerplate_directories" in config:
             self.boilerplate_dirs = config["boilerplate_directories"]
+        if "force_language" in config:
+            self.force_language = config["force_language"]
         if "same_name_only" in config:
             self.same_name_only = config["same_name_only"]
         if "ignore_leaf" in config:

@@ -10,7 +10,9 @@ def main():
     parser = argparse.ArgumentParser(prog="copydetect",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("-c", "--conf", metavar="CONFIGURATION.JSON",
-                        help="path to the JSON configuration file")
+                        help="path to the JSON configuration file, if "
+                        "using file configuration rather than command "
+                        "line flags")
     parser.add_argument("-t", "--test-dirs", nargs='+',
                         metavar="TEST-DIRECTORY",
                         help="list of directories to recursively search for "
@@ -39,6 +41,11 @@ def main():
                         metavar="DISPLAY-THRESHOLD",
                         help="percentage of copied code considered interesting"
                         " enough to display on the report")
+    parser.add_argument("-o", '--force-language', dest='language',
+                        default=None,
+                        help="language to use for tokenization (if not "
+                        "provided, the tokenizer guesses based on file "
+                        "extensions)")
     parser.add_argument("-s", '--same-name', dest='same_name',
                         action='store_true', default=False,
                         help="only compare files which have the same name")
@@ -71,6 +78,7 @@ def main():
           "noise_threshold" : args.noise_thresh,
           "guarantee_threshold" : args.guarantee_thresh,
           "display_threshold" : args.display_thresh,
+          "force_language" : args.language,
           "same_name_only" : args.same_name,
           "ignore_leaf" : args.ignore_leaf,
           "disable_filtering" : args.filter,
