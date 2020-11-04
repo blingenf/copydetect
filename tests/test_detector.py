@@ -173,7 +173,17 @@ class TestParameters():
         detector.run()
 
         fingerprint1 = detector.file_data[
-            str(Path(tests_dir+"/sample/handout.py"))]
+            str(Path(tests_dir + "/sample/handout.py"))]
 
         # "#" isn't a comment in java, so it won't be removed
         assert fingerprint1.filtered_code[0] == "#"
+
+    def test_truncation(self):
+        detector = CopyDetector(
+            test_dirs=[tests_dir + "/sample/boilerplate"],
+            noise_t=10, guarantee_t=10, truncate=True, silent=True)
+        detector.add_file(str(Path(tests_dir + "/sample/handout.py")))
+        detector.run()
+        code_list = detector.get_copied_code_list()
+
+        assert len(code_list[0][4]) < 500 and len(code_list[0][5]) < 500
