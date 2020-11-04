@@ -30,3 +30,4 @@ Configuration options can be provided either by using the command line arguments
 - ``ignore_leaf`` (``-l``, ``--ignore-leaf``):  if ``true``, the detector will not compare files located in the same leaf directory.
 - ``disable_filtering`` (``-f``, ``--disable-filter``):  if ``true``, the detector will not tokenize and filter code before generating file fingerprints.
 - ``disable_autoopen`` (``-a``, ``--disable-autoopen``):  if ``true``, the detector will not automatically open a browser window to display the report.
+- ``truncate`` (``-T``, ``--truncate``):  if ``true``, highlighted code will be truncated to remove non-highlighted regions from the displayed output (sections not within 10 lines of highlighted code will be replaced with "...").

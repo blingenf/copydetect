@@ -152,7 +152,7 @@ def highlight_overlap(doc, slices, left_hl, right_hl,
     Returns the document annoted with the highlight strings as well as
     the percentage of code which was highlighted. If truncate is set to
     an integer, everything not within that many lines of highlighted
-    code will be replaced with "\n...\n"
+    code will be replaced with "..."
     """
     hl_percent = np.sum(slices[1] - slices[0])/len(doc)
 
