@@ -199,6 +199,9 @@ class CopyDetector:
     force_language : str
         If set, forces the tokenizer to use a particular programming
         language regardless of the file extension.
+    truncate : bool
+        If true, highlighted code will be truncated to remove non-
+        highlighted regions from the displayed output
     silent : bool
         If true, all logging output will be supressed.
     """
@@ -206,7 +209,8 @@ class CopyDetector:
                  boilerplate_dirs=[], extensions=["*"],
                  noise_t=25, guarantee_t=30, display_t=0.33,
                  same_name_only=False, ignore_leaf=False, autoopen=True,
-                 disable_filtering=False, force_language=None, silent=False):
+                 disable_filtering=False, force_language=None,
+                 truncate=False, silent=False):
         self.silent = silent
         self.test_dirs = test_dirs
         if len(ref_dirs) == 0:
@@ -223,6 +227,7 @@ class CopyDetector:
         self.autoopen = autoopen
         self.disable_filtering = disable_filtering
         self.force_language = force_language
+        self.truncate = truncate
 
         if config is not None:
             self._load_config(config)
@@ -260,6 +265,8 @@ class CopyDetector:
             self.disable_filtering = config["disable_filtering"]
         if "disable_autoopen" in config:
             self.autoopen = not config["disable_autoopen"]
+        if "truncate" in config:
+            self.truncate = config["truncate"]
 
     def _check_arguments(self):
         """type/value checking helper function for __init__"""
@@ -279,6 +286,11 @@ class CopyDetector:
             raise TypeError("disable_filtering must be true or false")
         if not isinstance(self.autoopen, bool):
             raise TypeError("disable_autoopen must be true or false")
+        if self.force_language is not None:
+            if not isinstance(self.force_language, str):
+                raise TypeError("force_language must be a string")
+        if not isinstance(self.truncate, bool):
+            raise TypeError("truncate must be true or false")
         if not isinstance(self.noise_t, int):
             if int(self.noise_t) == self.noise_t:
                 self.noise_t = int(self.noise_t)
@@ -467,23 +479,29 @@ class CopyDetector:
         for idx in range(len(x)):
             test_f = self.all_files[x[idx]]
             ref_f = self.all_files[y[idx]]
-            if test_f+ref_f in selected_pairs:
+            if test_f + ref_f in selected_pairs:
                 continue
 
-            selected_pairs.add(test_f+ref_f)
-            selected_pairs.add(ref_f+test_f)
-            test_sim = self.similarity_matrix[x[idx],y[idx]]
-            ref_sim = self.similarity_matrix[y[idx],x[idx]]
-
+            selected_pairs.add(test_f + ref_f)
+            selected_pairs.add(ref_f + test_f)
+            test_sim = self.similarity_matrix[x[idx], y[idx]]
+            ref_sim = self.similarity_matrix[y[idx], x[idx]]
             slices_test = self.slice_matrix[x[idx]][y[idx]][0]
             slices_ref = self.slice_matrix[x[idx]][y[idx]][1]
+
+            if self.truncate:
+                truncate = 10
+            else:
+                truncate = -1
             hl_code_1, _ = highlight_overlap(
                 self.file_data[test_f].raw_code, slices_test,
-                "<span class='highlight-red'>", "</span>", escape_html=True)
+                "<span class='highlight-red'>", "</span>",
+                truncate=truncate, escape_html=True)
             hl_code_2, _ = highlight_overlap(
                 self.file_data[ref_f].raw_code, slices_ref,
-                "<span class='highlight-green'>", "</span>", escape_html=True)
-            overlap = self.token_overlap_matrix[x[idx],y[idx]]
+                "<span class='highlight-green'>", "</span>",
+                truncate=truncate, escape_html=True)
+            overlap = self.token_overlap_matrix[x[idx], y[idx]]
 
             code_list.append([test_sim, ref_sim, test_f, ref_f,
                               hl_code_1, hl_code_2, overlap])

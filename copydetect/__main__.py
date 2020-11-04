@@ -59,6 +59,10 @@ def main():
     parser.add_argument("-a", '--disable-autoopen', dest='autoopen',
                         action='store_true', default=False,
                         help="disable browser autoopen")
+    parser.add_argument("-T", '--truncate', dest='truncate',
+                        action='store_true', default=False,
+                        help="truncate non-copied portions of highlighted "
+                        "code")
     parser.add_argument('--version', action='version',
                         version="copydetect v" + __version__,
                         help="print version number and exit")
@@ -83,6 +87,7 @@ def main():
           "ignore_leaf" : args.ignore_leaf,
           "disable_filtering" : args.filter,
           "disable_autoopen" : args.autoopen,
+          "truncate" : args.truncate,
         }
     else:
         parser.error("either a path to a configuration file (-c) or a "

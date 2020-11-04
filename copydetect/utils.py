@@ -145,11 +145,14 @@ def find_fingerprint_overlap(hashes1, hashes2, idx1, idx2):
         return_indices=True, assume_unique=True)
     return idx1[ol_idx1], idx2[ol_idx2]
 
-def highlight_overlap(doc, slices, left_hl, right_hl, escape_html=False):
+def highlight_overlap(doc, slices, left_hl, right_hl,
+                      truncate=-1, escape_html=False):
     """Highlights copied code in a document given the slices containing
     copied code and strings to use for the highlight start and end.
     Returns the document annoted with the highlight strings as well as
-    the percentage of code which was highlighted.
+    the percentage of code which was highlighted. If truncate is set to
+    an integer, everything not within that many lines of highlighted
+    code will be replaced with "\n...\n"
     """
     hl_percent = np.sum(slices[1] - slices[0])/len(doc)
 
@@ -160,16 +163,32 @@ def highlight_overlap(doc, slices, left_hl, right_hl, escape_html=False):
         end_idx = slices[1,slice_idx]
 
         if escape_html:
-            new_doc += str(escape(doc[current_idx:start_idx]))
-            new_doc += left_hl + str(escape(doc[start_idx:end_idx])) + right_hl
+            pre_highlight = str(escape(doc[current_idx:start_idx]))
+            highlighted = left_hl+str(escape(doc[start_idx:end_idx]))+right_hl
         else:
-            new_doc += doc[current_idx:start_idx]
-            new_doc += left_hl + doc[start_idx:end_idx] + right_hl
+            pre_highlight = doc[current_idx:start_idx]
+            highlighted = left_hl + doc[start_idx:end_idx] + right_hl
+
+        if truncate >= 0:
+            lines = pre_highlight.split("\n")
+            if slice_idx != 0 and len(lines) > truncate*2:
+                pre_highlight = ("\n".join(lines[:truncate+1]) + "\n\n...\n\n"
+                                 + "\n".join(lines[-truncate - 1:]))
+            elif len(lines) > truncate:
+                pre_highlight = "\n".join(lines[-truncate - 1:])
+
+        new_doc += pre_highlight + highlighted
         current_idx = end_idx
 
     if escape_html:
-        new_doc += str(escape(doc[current_idx:]))
+        post_highlight = str(escape(doc[current_idx:]))
     else:
-        new_doc += doc[current_idx:]
+        post_highlight = doc[current_idx:]
+
+    if truncate >= 0:
+        lines = post_highlight.split("\n")
+        if len(lines) > truncate:
+            post_highlight = "\n".join(lines[:truncate])
+    new_doc += post_highlight
 
     return new_doc, hl_percent
