@@ -19,6 +19,7 @@ import webbrowser
 import pkg_resources
 from jinja2 import Template
 from tqdm import tqdm
+import shutil
 
 class CodeFingerprint:
     """Class for tokenizing, filtering, fingerprinting, and winnowing
@@ -560,10 +561,7 @@ class CopyDetector:
 
             if not os.path.exists(f"{dir}/style/"):
                 os.makedirs(f"{dir}/style/")
-            with open(data_dir + "style.css", "r") as in_css_f:
-                css = in_css_f.read()
-            with open(f"{dir}/style/style.css", "w") as out_css_f:
-                out_css_f.write(css)
+            shutil.copy(data_dir + "style.css", f"{dir}/style/style.css")
 
             if not self.silent:
                 print(f"Output saved to {dir}/{page_name}.html")
