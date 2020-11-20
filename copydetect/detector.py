@@ -552,11 +552,18 @@ class CopyDetector:
                                  compare_count=len(self.ref_files),
                                  flagged_file_count=flagged_file_count,
                                  code_list=code_list,
-                                 style_path=data_dir + "style.css")
+                                 style_path="style/style.css")
 
         if output_mode == "save":
             with open(f"{dir}/{page_name}.html", "w") as report_f:
                 report_f.write(output)
+
+            if not os.path.exists(f"{dir}/style/"):
+                os.makedirs(f"{dir}/style/")
+            with open(data_dir + "style.css", "r") as in_css_f:
+                css = in_css_f.read()
+            with open(f"{dir}/style/style.css", "w") as out_css_f:
+                out_css_f.write(css)
 
             if not self.silent:
                 print(f"Output saved to {dir}/{page_name}.html")
