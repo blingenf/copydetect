@@ -6,7 +6,6 @@ documents.
 from pygments import lexers, token
 import pygments.util
 import numpy as np
-import time
 import logging
 from jinja2 import escape
 # if the C extention is available, use it. For almost all use cases

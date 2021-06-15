@@ -96,7 +96,7 @@ def main():
     # get overlapping code
     detector = CopyDetector(config)
     detector.run()
-    detector.generate_html_report("report", "report")
+    detector.generate_html_report("report.html")
 
 if __name__ == "__main__":
     main()

@@ -63,13 +63,10 @@ class TestTwoFileDetection():
         }
         detector = CopyDetector(config, silent=True)
         detector.run()
-        detector.generate_html_report(tmpdir)
-        output_paths = [path.name for path in Path(tmpdir).rglob("*")]
+        detector.generate_html_report(tmpdir + "/report.html")
 
         # check for expected files
-        assert any([path == "report.html" for path in output_paths])
-        assert any([path == "sim_histogram.png" for path in output_paths])
-        assert any([path == "sim_matrix.png" for path in output_paths])
+        assert Path(tmpdir + "/report.html").exists()
 
     def test_compare_boilerplate(self):
         config = {
@@ -104,7 +101,7 @@ class TestTwoFileDetection():
         }
         detector = CopyDetector(config, silent=True)
         detector.run()
-        html_out = detector.generate_html_report(tmpdir)
+        html_out = detector.generate_html_report(tmpdir + "/report.html")
 
         skipped_files = detector.similarity_matrix == -1
         assert np.all(detector.similarity_matrix[~skipped_files] >= 0)
