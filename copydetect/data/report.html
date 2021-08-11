@@ -5,7 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Copy Detection Report</title>
   <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
-  <link rel="stylesheet" href="{{ style_path }}">
+  <style>
+    h1 {
+      text-align: center;
+    }
+    .highlight-green {
+      background-color: #b6f2b6;
+    }
+    .highlight-red {
+      background-color: #f2b6b6;
+    }
+    pre {
+      text-align: left;
+    }
+  </style>
 </head>
 <body>
 <div class="container" style="margin-top: 3em; max-width: 1400px">
@@ -14,11 +27,11 @@
     <div class="container d-flex justify-content-center">
       <div class="col">
         <h4 style="text-align: center;">Similarity Matrix</h4>
-        <img src="figures/sim_matrix.png" alt="Code similarity matrix">
+        <img src="data:image/png;base64, {{ sim_mtx_base64 }}" alt="Code similarity matrix">
       </div>
       <div class="col">
         <h4 style="text-align: center;">Similarity Score Distribution</h4>
-        <img src="figures/sim_histogram.png" alt="Code similarity histogram">
+        <img src="data:image/png;base64, {{ sim_hist_base64 }}" alt="Code similarity histogram">
       </div>
     </div>
     <p style="text-align: center">

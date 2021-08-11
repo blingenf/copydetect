@@ -6,9 +6,8 @@ documents.
 from pygments import lexers, token
 import pygments.util
 import numpy as np
-import time
 import logging
-from jinja2 import escape
+from markupsafe import escape
 # if the C extention is available, use it. For almost all use cases
 # the speed difference is not significant so if the C extention isn't
 # found copydetect will silenty switch to the python implementation.

@@ -63,6 +63,13 @@ def main():
                         action='store_true', default=False,
                         help="truncate non-copied portions of highlighted "
                         "code")
+    parser.add_argument("-O", '--out-file', dest='out_file',
+                        default="./report.html",
+                        help="path to save output report to. A '.html' "
+                        "extension will be added to the path if not provided. "
+                        "If a directory is provided instead of a file, the "
+                        "report will be saved  to that directory as "
+                        "report.html.")
     parser.add_argument('--version', action='version',
                         version="copydetect v" + __version__,
                         help="print version number and exit")
@@ -88,6 +95,7 @@ def main():
           "disable_filtering" : args.filter,
           "disable_autoopen" : args.autoopen,
           "truncate" : args.truncate,
+          "out_file" : args.out_file,
         }
     else:
         parser.error("either a path to a configuration file (-c) or a "
@@ -96,7 +104,7 @@ def main():
     # get overlapping code
     detector = CopyDetector(config)
     detector.run()
-    detector.generate_html_report("report", "report")
+    detector.generate_html_report()
 
 if __name__ == "__main__":
     main()

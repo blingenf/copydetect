@@ -3,14 +3,9 @@ a set of test files (files to check for plagairism) and a set of
 reference files (files that might have been plagairised from).
 """
 
-import json
 from pathlib import Path
 import time
 import numpy as np
-import hashlib
-import os
-import pickle
-import sys
 import logging
 from .utils import (filter_code, highlight_overlap, get_copied_slices,
                     get_document_fingerprints, find_fingerprint_overlap)
@@ -19,7 +14,8 @@ import webbrowser
 import pkg_resources
 from jinja2 import Template
 from tqdm import tqdm
-import shutil
+import io
+import base64
 
 class CodeFingerprint:
     """Class for tokenizing, filtering, fingerprinting, and winnowing
@@ -203,6 +199,8 @@ class CopyDetector:
     truncate : bool
         If true, highlighted code will be truncated to remove non-
         highlighted regions from the displayed output
+    out_file : str
+        Path to output report file.
     silent : bool
         If true, all logging output will be supressed.
     """
@@ -211,7 +209,7 @@ class CopyDetector:
                  noise_t=25, guarantee_t=30, display_t=0.33,
                  same_name_only=False, ignore_leaf=False, autoopen=True,
                  disable_filtering=False, force_language=None,
-                 truncate=False, silent=False):
+                 truncate=False, out_file="./report.html", silent=False):
         self.silent = silent
         self.test_dirs = test_dirs
         if len(ref_dirs) == 0:
@@ -229,11 +227,18 @@ class CopyDetector:
         self.disable_filtering = disable_filtering
         self.force_language = force_language
         self.truncate = truncate
+        self.out_file = out_file
 
         if config is not None:
             self._load_config(config)
 
         self._check_arguments()
+
+        out_path = Path(self.out_file)
+        if out_path.is_dir():
+            self.out_file += "/report.html"
+        elif out_path.suffix != ".html":
+            self.out_file = str(out_path) + ".html"
 
         self.window_size = self.guarantee_t - self.noise_t + 1
 
@@ -268,6 +273,8 @@ class CopyDetector:
             self.autoopen = not config["disable_autoopen"]
         if "truncate" in config:
             self.truncate = config["truncate"]
+        if "out_file" in config:
+            self.out_file = config["out_file"]
 
     def _check_arguments(self):
         """type/value checking helper function for __init__"""
@@ -311,6 +318,9 @@ class CopyDetector:
                              "equal to noise threshold")
         if self.display_t > 1 or self.display_t < 0:
             raise ValueError("Display threshold must be between 0 and 1")
+        if Path(self.out_file).parent.exists() == False:
+            raise ValueError("Invalid output file path "
+                "(directory does not exist)")
 
     def _get_file_list(self, dirs, exts, unique=True):
         """Recursively collects list of files from provided
@@ -425,10 +435,10 @@ class CopyDetector:
                     continue
 
                 if self.same_name_only:
-                    if os.path.basename(test_f) != os.path.basename(ref_f):
+                    if Path(test_f).name != Path(ref_f).name:
                         continue
                 if self.ignore_leaf:
-                    if os.path.dirname(test_f) == os.path.dirname(ref_f):
+                    if Path(test_f).parent == Path(ref_f).parent:
                         continue
 
                 overlap, (sim1,sim2), (slices1,slices2) = compare_files(
@@ -510,8 +520,7 @@ class CopyDetector:
         code_list.sort(key=lambda x: -x[0])
         return code_list
 
-    def generate_html_report(self, dir="report", page_name="report",
-                             output_mode="save"):
+    def generate_html_report(self, output_mode="save"):
         """Generates an html report listing all files with similarity
         above the display_threshold, with the copied code segments
         highlighted.
@@ -523,24 +532,25 @@ class CopyDetector:
         code_list = self.get_copied_code_list()
         data_dir = pkg_resources.resource_filename('copydetect', 'data/')
 
-        if output_mode == "save":
-            # make output directory, figures
-            if not os.path.exists(f"{dir}/figures/"):
-                os.makedirs(f"{dir}/figures/")
+        plot_mtx = np.copy(self.similarity_matrix)
+        plot_mtx[plot_mtx == -1] = np.nan
+        plt.imshow(plot_mtx)
+        plt.colorbar()
+        plt.tight_layout()
+        sim_mtx_buffer = io.BytesIO()
+        plt.savefig(sim_mtx_buffer)
+        sim_mtx_buffer.seek(0)
+        sim_mtx_base64 = base64.b64encode(sim_mtx_buffer.read()).decode()
+        plt.close()
 
-            plot_mtx = np.copy(self.similarity_matrix)
-            plot_mtx[plot_mtx == -1] = np.nan
-            plt.imshow(plot_mtx)
-            plt.colorbar()
-            plt.tight_layout()
-            plt.savefig(f"{dir}/figures/sim_matrix.png")
-            plt.close()
-
-            scores = self.similarity_matrix[self.similarity_matrix != -1]
-            plt.hist(scores, bins=20)
-            plt.tight_layout()
-            plt.savefig(f"{dir}/figures/sim_histogram.png")
-            plt.close()
+        scores = self.similarity_matrix[self.similarity_matrix != -1]
+        plt.hist(scores, bins=20)
+        plt.tight_layout()
+        sim_hist_buffer = io.BytesIO()
+        plt.savefig(sim_hist_buffer)
+        sim_hist_buffer.seek(0)
+        sim_hist_base64 = base64.b64encode(sim_hist_buffer.read()).decode()
+        plt.close()
 
         # render template with jinja and save as html
         with open(data_dir + "report.html") as template_fp:
@@ -553,21 +563,17 @@ class CopyDetector:
                                  compare_count=len(self.ref_files),
                                  flagged_file_count=flagged_file_count,
                                  code_list=code_list,
-                                 style_path="style/style.css")
+                                 sim_mtx_base64=sim_mtx_base64,
+                                 sim_hist_base64=sim_hist_base64)
 
         if output_mode == "save":
-            with open(f"{dir}/{page_name}.html", "w") as report_f:
+            with open(self.out_file, "w") as report_f:
                 report_f.write(output)
 
-            if not os.path.exists(f"{dir}/style/"):
-                os.makedirs(f"{dir}/style/")
-            shutil.copy(data_dir + "style.css", f"{dir}/style/style.css")
-
             if not self.silent:
-                print(f"Output saved to {dir}/{page_name}.html")
+                print(f"Output saved to {self.out_file.replace('//', '/')}")
             if self.autoopen:
-                webbrowser.open('file://'
-                                + os.path.realpath(f"{dir}/{page_name}.html"))
+                webbrowser.open('file://' + str(Path(self.out_file).resolve()))
         elif output_mode == "return":
             return output
         else:

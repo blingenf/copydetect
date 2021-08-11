@@ -59,17 +59,15 @@ class TestTwoFileDetection():
           "noise_threshold" : 25,
           "guarantee_threshold" : 25,
           "display_threshold" : 0,
-          "disable_autoopen" : True
+          "disable_autoopen" : True,
+          "out_file" : tmpdir
         }
         detector = CopyDetector(config, silent=True)
         detector.run()
-        detector.generate_html_report(tmpdir)
-        output_paths = [path.name for path in Path(tmpdir).rglob("*")]
+        detector.generate_html_report()
 
         # check for expected files
-        assert any([path == "report.html" for path in output_paths])
-        assert any([path == "sim_histogram.png" for path in output_paths])
-        assert any([path == "sim_matrix.png" for path in output_paths])
+        assert Path(tmpdir + "/report.html").exists()
 
     def test_compare_boilerplate(self):
         config = {
@@ -100,11 +98,12 @@ class TestTwoFileDetection():
           "noise_threshold" : 25,
           "guarantee_threshold" : 30,
           "display_threshold" : 0.3,
-          "disable_autoopen" : True
+          "disable_autoopen" : True,
+          "out_file" : tmpdir
         }
         detector = CopyDetector(config, silent=True)
         detector.run()
-        html_out = detector.generate_html_report(tmpdir)
+        html_out = detector.generate_html_report()
 
         skipped_files = detector.similarity_matrix == -1
         assert np.all(detector.similarity_matrix[~skipped_files] >= 0)
@@ -187,3 +186,22 @@ class TestParameters():
         code_list = detector.get_copied_code_list()
 
         assert len(code_list[0][4]) < 500 and len(code_list[0][5]) < 500
+
+    def test_out_file(self, tmpdir):
+        detector = CopyDetector(test_dirs=[tests_dir + "/sample"],
+            silent=True, out_file=tmpdir + "/test", autoopen=False)
+        detector.run()
+        detector.generate_html_report()
+
+        assert Path(tmpdir + "/test.html").exists()
+
+        with pytest.raises(ValueError):
+            detector = CopyDetector(test_dirs=[tests_dir + "/sample"],
+            silent=True, out_file=tmpdir + "/not_a_dir/test")
+
+        detector = CopyDetector(test_dirs=[tests_dir + "/sample"],
+            silent=True, out_file=tmpdir, autoopen=False)
+        detector.run()
+        detector.generate_html_report()
+
+        assert Path(tmpdir + "/report.html").exists()
