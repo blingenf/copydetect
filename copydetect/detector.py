@@ -199,6 +199,8 @@ class CopyDetector:
     truncate : bool
         If true, highlighted code will be truncated to remove non-
         highlighted regions from the displayed output
+    out_file : str
+        Path to output report file.
     silent : bool
         If true, all logging output will be supressed.
     """
@@ -207,7 +209,7 @@ class CopyDetector:
                  noise_t=25, guarantee_t=30, display_t=0.33,
                  same_name_only=False, ignore_leaf=False, autoopen=True,
                  disable_filtering=False, force_language=None,
-                 truncate=False, silent=False):
+                 truncate=False, out_file="./report.html", silent=False):
         self.silent = silent
         self.test_dirs = test_dirs
         if len(ref_dirs) == 0:
@@ -225,11 +227,18 @@ class CopyDetector:
         self.disable_filtering = disable_filtering
         self.force_language = force_language
         self.truncate = truncate
+        self.out_file = out_file
 
         if config is not None:
             self._load_config(config)
 
         self._check_arguments()
+
+        out_path = Path(self.out_file)
+        if out_path.is_dir():
+            self.out_file += "/report.html"
+        elif out_path.suffix != ".html":
+            self.out_file = str(out_path) + ".html"
 
         self.window_size = self.guarantee_t - self.noise_t + 1
 
@@ -264,6 +273,8 @@ class CopyDetector:
             self.autoopen = not config["disable_autoopen"]
         if "truncate" in config:
             self.truncate = config["truncate"]
+        if "out_file" in config:
+            self.out_file = config["out_file"]
 
     def _check_arguments(self):
         """type/value checking helper function for __init__"""
@@ -307,6 +318,9 @@ class CopyDetector:
                              "equal to noise threshold")
         if self.display_t > 1 or self.display_t < 0:
             raise ValueError("Display threshold must be between 0 and 1")
+        if Path(self.out_file).parent.exists() == False:
+            raise ValueError("Invalid output file path "
+                "(directory does not exist)")
 
     def _get_file_list(self, dirs, exts, unique=True):
         """Recursively collects list of files from provided
@@ -506,7 +520,7 @@ class CopyDetector:
         code_list.sort(key=lambda x: -x[0])
         return code_list
 
-    def generate_html_report(self, out_file="report.html", output_mode="save"):
+    def generate_html_report(self, output_mode="save"):
         """Generates an html report listing all files with similarity
         above the display_threshold, with the copied code segments
         highlighted.
@@ -553,13 +567,13 @@ class CopyDetector:
                                  sim_hist_base64=sim_hist_base64)
 
         if output_mode == "save":
-            with open(out_file, "w") as report_f:
+            with open(self.out_file, "w") as report_f:
                 report_f.write(output)
 
             if not self.silent:
-                print(f"Output saved to {out_file}")
+                print(f"Output saved to {self.out_file.replace('//', '/')}")
             if self.autoopen:
-                webbrowser.open('file://' + str(Path(out_file).resolve()))
+                webbrowser.open('file://' + str(Path(self.out_file).resolve()))
         elif output_mode == "return":
             return output
         else:
