@@ -5,7 +5,7 @@ from copydetect import CopyDetector, CodeFingerprint, compare_files
 import numpy as np
 from pathlib import Path
 
-tests_dir = str(Path(__file__).parent)
+TESTS_DIR = str(Path(__file__).parent)
 
 class TestTwoFileDetection():
     """Test of the user-facing copydetect code for a simple two-file
@@ -14,8 +14,8 @@ class TestTwoFileDetection():
     """
     def test_compare(self):
         config = {
-          "test_directories" : [tests_dir + "/sample/code"],
-          "reference_directories" : [tests_dir + "/sample/code"],
+          "test_directories" : [TESTS_DIR + "/sample_py/code"],
+          "reference_directories" : [TESTS_DIR + "/sample_py/code"],
           "extensions" : ["py"],
           "noise_threshold" : 25,
           "guarantee_threshold" : 25,
@@ -42,8 +42,8 @@ class TestTwoFileDetection():
 
     def test_compare_manual_config(self):
         detector = CopyDetector(noise_t=25, guarantee_t=25, silent=True)
-        detector.add_file(tests_dir + "/sample/code/sample1.py")
-        detector.add_file(tests_dir + "/sample/code/sample2.py")
+        detector.add_file(TESTS_DIR + "/sample_py/code/sample1.py")
+        detector.add_file(TESTS_DIR + "/sample_py/code/sample2.py")
         detector.run()
 
         assert np.array_equal(np.array([[-1,1137/2052],[1137/1257,-1]]),
@@ -53,8 +53,8 @@ class TestTwoFileDetection():
 
     def test_compare_saving(self, tmpdir):
         config = {
-          "test_directories" : [tests_dir + "/sample/code"],
-          "reference_directories" : [tests_dir + "/sample/code"],
+          "test_directories" : [TESTS_DIR + "/sample_py/code"],
+          "reference_directories" : [TESTS_DIR + "/sample_py/code"],
           "extensions" : ["py"],
           "noise_threshold" : 25,
           "guarantee_threshold" : 25,
@@ -71,9 +71,9 @@ class TestTwoFileDetection():
 
     def test_compare_boilerplate(self):
         config = {
-          "test_directories" : [tests_dir + "/sample/code"],
-          "reference_directories" : [tests_dir + "/sample/code"],
-          "boilerplate_directories" : [tests_dir + "/sample/boilerplate"],
+          "test_directories" : [TESTS_DIR + "/sample_py/code"],
+          "reference_directories" : [TESTS_DIR + "/sample_py/code"],
+          "boilerplate_directories" : [TESTS_DIR + "/sample_py/boilerplate"],
           "extensions" : ["py"],
           "noise_threshold" : 25,
           "guarantee_threshold" : 25,
@@ -92,8 +92,8 @@ class TestTwoFileDetection():
         and perform some basic sanity checking.
         """
         config = {
-          "test_directories" : [tests_dir],
-          "reference_directories" : [tests_dir],
+          "test_directories" : [TESTS_DIR],
+          "reference_directories" : [TESTS_DIR],
           "extensions" : ["*"],
           "noise_threshold" : 25,
           "guarantee_threshold" : 30,
@@ -116,8 +116,8 @@ class TestTwoFileAPIDetection():
     the API instead of the command line code.
     """
     def test_compare(self):
-        fp1 = CodeFingerprint(tests_dir + "/sample/code/sample1.py", 25, 1)
-        fp2 = CodeFingerprint(tests_dir + "/sample/code/sample2.py", 25, 1)
+        fp1 = CodeFingerprint(TESTS_DIR+"/sample_py/code/sample1.py", 25, 1)
+        fp2 = CodeFingerprint(TESTS_DIR+"/sample_py/code/sample2.py", 25, 1)
         token_overlap, similarities, slices = compare_files(fp1, fp2)
 
         assert token_overlap == 1137
@@ -126,10 +126,10 @@ class TestTwoFileAPIDetection():
 
     def test_compare_boilerplate(self):
         bp_fingerprint = CodeFingerprint(
-            tests_dir + "/sample/boilerplate/handout.py", 25, 1)
-        fp1 = CodeFingerprint(tests_dir + "/sample/code/sample1.py", 25, 1,
+            TESTS_DIR + "/sample_py/boilerplate/handout.py", 25, 1)
+        fp1 = CodeFingerprint(TESTS_DIR+"/sample_py/code/sample1.py", 25, 1,
                               bp_fingerprint.hashes)
-        fp2 = CodeFingerprint(tests_dir + "/sample/code/sample2.py", 25, 1,
+        fp2 = CodeFingerprint(TESTS_DIR+"/sample_py/code/sample2.py", 25, 1,
                               bp_fingerprint.hashes)
 
         token_overlap, similarities, slices = compare_files(fp1, fp2)
@@ -141,7 +141,7 @@ class TestTwoFileAPIDetection():
 class TestParameters():
     """Test cases for individual parameters"""
     def test_ignore_leaf(self):
-        detector = CopyDetector(test_dirs=[tests_dir + "/sample"],
+        detector = CopyDetector(test_dirs=[TESTS_DIR + "/sample_py"],
                                 ignore_leaf=True, silent=True)
         detector.run()
 
@@ -150,7 +150,7 @@ class TestParameters():
         assert np.sum(detector.similarity_matrix == -1) == 6
 
     def test_same_name_only(self):
-        detector = CopyDetector(test_dirs=[tests_dir + "/sample"],
+        detector = CopyDetector(test_dirs=[TESTS_DIR + "/sample_py"],
                                 same_name_only=True, silent=True)
         detector.run()
 
@@ -158,37 +158,37 @@ class TestParameters():
         assert np.sum(detector.similarity_matrix != -1) == 2
 
     def test_disable_filtering(self):
-        detector = CopyDetector(test_dirs=[tests_dir + "/sample"],
+        detector = CopyDetector(test_dirs=[TESTS_DIR + "/sample_py"],
                                 disable_filtering=True, silent=True)
         detector.run()
 
         fingerprint1 = detector.file_data[
-            str(Path(tests_dir+"/sample/code/sample1.py"))]
+            str(Path(TESTS_DIR + "/sample_py/code/sample1.py"))]
         assert fingerprint1.raw_code == fingerprint1.filtered_code
 
     def test_force_language(self):
-        detector = CopyDetector(test_dirs=[tests_dir + "/sample"],
+        detector = CopyDetector(test_dirs=[TESTS_DIR + "/sample_py"],
                                 force_language="java", silent=True)
         detector.run()
 
         fingerprint1 = detector.file_data[
-            str(Path(tests_dir + "/sample/handout.py"))]
+            str(Path(TESTS_DIR + "/sample_py/handout.py"))]
 
         # "#" isn't a comment in java, so it won't be removed
         assert fingerprint1.filtered_code[0] == "#"
 
     def test_truncation(self):
         detector = CopyDetector(
-            test_dirs=[tests_dir + "/sample/boilerplate"],
+            test_dirs=[TESTS_DIR + "/sample_py/boilerplate"],
             noise_t=10, guarantee_t=10, truncate=True, silent=True)
-        detector.add_file(str(Path(tests_dir + "/sample/handout.py")))
+        detector.add_file(str(Path(TESTS_DIR + "/sample_py/handout.py")))
         detector.run()
         code_list = detector.get_copied_code_list()
 
         assert len(code_list[0][4]) < 500 and len(code_list[0][5]) < 500
 
     def test_out_file(self, tmpdir):
-        detector = CopyDetector(test_dirs=[tests_dir + "/sample"],
+        detector = CopyDetector(test_dirs=[TESTS_DIR + "/sample_py"],
             silent=True, out_file=tmpdir + "/test", autoopen=False)
         detector.run()
         detector.generate_html_report()
@@ -196,10 +196,10 @@ class TestParameters():
         assert Path(tmpdir + "/test.html").exists()
 
         with pytest.raises(ValueError):
-            detector = CopyDetector(test_dirs=[tests_dir + "/sample"],
+            detector = CopyDetector(test_dirs=[TESTS_DIR + "/sample_py"],
             silent=True, out_file=tmpdir + "/not_a_dir/test")
 
-        detector = CopyDetector(test_dirs=[tests_dir + "/sample"],
+        detector = CopyDetector(test_dirs=[TESTS_DIR + "/sample_py"],
             silent=True, out_file=tmpdir, autoopen=False)
         detector.run()
         detector.generate_html_report()
