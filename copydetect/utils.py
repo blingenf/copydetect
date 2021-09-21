@@ -60,7 +60,7 @@ def filter_code(code, filename, language=None):
             out_code += "P"
             offsets.append([len(out_code) - 1, offset])
             offset += len(t[1]) - 1
-        elif t[0] == token.Text or t[0] in token.Comment:
+        elif t[0] in token.Text or t[0] in token.Comment:
             offsets.append([len(out_code) - 1, offset])
             offset += len(t[1])
         elif t[0] in token.Literal.String:
