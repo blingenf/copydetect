@@ -1,8 +1,11 @@
 """Unit tests for the copy detect utils functions"""
 
 import copydetect.utils as cd
+from pathlib import Path
 import numpy as np
 import pytest
+
+TESTS_DIR = str(Path(__file__).parent)
 
 class TestSmallDoc():
     """Test the copy detection pipeline for two simple strings"""
@@ -58,7 +61,7 @@ class TestSmallDoc():
         assert 12/21 == similarity1
         assert 12/20 == similarity2
 
-class TestTokenizer():
+class TestTokenizerPythonSample():
     """Test code tokenization, filtering, and copy detection on a small
     example function.
     """
@@ -128,3 +131,44 @@ class TestTokenizer():
         assert similarity2 == 70/len(self.sample_copied_code)
         assert hl_code1 == gt_hl1
         assert hl_code2 == gt_hl2
+
+class TestTokenizerOtherSamples():
+    """Test code tokenization and filtering for a variety of common
+    languages
+    """
+
+    def test_php_tokenization(self):
+        with open(TESTS_DIR + "/sample_other/php_sample.php") as php_f:
+            php_sample = php_f.read()
+        out_code, offsets = cd.filter_code(php_sample, "php_sample.php")
+
+        # PHP variables are tokenized differently because they
+        # have a $ prefix
+        assert "var1" not in out_code
+        # preprocessor directive should be filtered, builtin
+        # function should not
+        assert "Psession_start()" in out_code
+
+    def test_c_tokenization(self):
+        with open(TESTS_DIR + "/sample_other/c_sample.c") as c_f:
+            c_sample = c_f.read()
+        out_code, offsets = cd.filter_code(c_sample, "c_sample.c")
+
+        # Preprocessor directive and function name should be filtered,
+        # return type should not
+        assert "PintF" in out_code
+        # * placement shouldn't matter
+        assert "char*V" in out_code
+
+    def test_java_tokenization(self):
+        with open(TESTS_DIR + "/sample_other/java_sample.java") as java_f:
+            java_sample = java_f.read()
+        out_code, offsets = cd.filter_code(java_sample, "java_sample.java")
+
+        # member variables should be tokenized
+        assert "this.V=V" in out_code
+        assert "modifier" not in out_code
+        # decorators shouldn't be filtered
+        # String isn't a primitive type in java so it's tokenized as
+        # Token.Name, which can't be differentiated from normal variables
+        assert "@OverridepublicVF" in out_code

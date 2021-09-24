@@ -42,8 +42,9 @@ def filter_code(code, filename, language=None):
     out_code = ""
     offset = 0
     offsets = [[0,0]]
+    variable_tokens = {token.Name, token.Name.Variable, token.Name.Attribute}
     for t in tokens:
-        if t[0] == token.Name:
+        if t[0] in variable_tokens:
             out_code += "V"
             offsets.append([len(out_code) - 1, offset])
             offset += len(t[1]) - 1
@@ -55,7 +56,11 @@ def filter_code(code, filename, language=None):
             out_code += "O"
             offsets.append([len(out_code) - 1, len(t[1]) - 1])
             offset += len(t[1]) - 1
-        elif t[0] == token.Text or t[0] in token.Comment:
+        elif t[0] == token.Comment.Preproc or t[0] == token.Comment.Hashbang:
+            out_code += "P"
+            offsets.append([len(out_code) - 1, offset])
+            offset += len(t[1]) - 1
+        elif t[0] in token.Text or t[0] in token.Comment:
             offsets.append([len(out_code) - 1, offset])
             offset += len(t[1])
         elif t[0] in token.Literal.String:
