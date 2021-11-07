@@ -5,17 +5,19 @@ reference files (files that might have been plagairised from).
 
 from pathlib import Path
 import time
-import numpy as np
 import logging
-from .utils import (filter_code, highlight_overlap, get_copied_slices,
-                    get_document_fingerprints, find_fingerprint_overlap)
-import matplotlib.pyplot as plt
 import webbrowser
 import pkg_resources
-from jinja2 import Template
-from tqdm import tqdm
 import io
 import base64
+
+from tqdm import tqdm
+import numpy as np
+import matplotlib.pyplot as plt
+from jinja2 import Template
+
+from .utils import (filter_code, highlight_overlap, get_copied_slices,
+                    get_document_fingerprints, find_fingerprint_overlap)
 
 class CodeFingerprint:
     """Class for tokenizing, filtering, fingerprinting, and winnowing
@@ -79,6 +81,11 @@ class CodeFingerprint:
         self.hashes = hashes
         self.hash_idx = idx
         self.k = k
+
+        # before run() is called, similarity data should be empty
+        self.similarity_matrix = np.array([])
+        self.token_overlap_matrix = np.array([])
+        self.slice_matrix = np.array([])
 
 def compare_files(file1_data, file2_data):
     """Computes the overlap between two CodeFingerprint objects
@@ -318,11 +325,11 @@ class CopyDetector:
                              "equal to noise threshold")
         if self.display_t > 1 or self.display_t < 0:
             raise ValueError("Display threshold must be between 0 and 1")
-        if Path(self.out_file).parent.exists() == False:
+        if not Path(self.out_file).parent.exists():
             raise ValueError("Invalid output file path "
                 "(directory does not exist)")
 
-    def _get_file_list(self, dirs, exts, unique=True):
+    def _get_file_list(self, dirs, exts):
         """Recursively collects list of files from provided
         directories. Used to search test_dirs, ref_dirs, and
         boilerplate_dirs
@@ -344,9 +351,15 @@ class CopyDetector:
 
     def add_file(self, filename, type="testref"):
         """Adds a file to the list of test files, reference files, or
-        boilerplate files. The "type" parameter should be one of
-        ["testref", "test", "ref", "boilerplate"]. "testref" will add
-        the file as both a test and reference file.
+        boilerplate files.
+
+        Parameters
+        ----------
+        filename : str
+            Name of file to add.
+        type : {"testref", "test", "ref", "boilerplate"}
+            Type of file to add. "testref" will add the file as both a
+            test and reference file.
         """
         if type == "testref":
             self.test_files.add(filename)
@@ -366,19 +379,21 @@ class CopyDetector:
         boilerplate_hashes = []
         for file in self.boilerplate_files:
             try:
-                with open(file) as boilerplate_fp:
-                    boilerplate = boilerplate_fp.read()
+                fingerprint=CodeFingerprint(file, self.noise_t, 1,
+                                            filter=not self.disable_filtering,
+                                            language=self.force_language)
+                boilerplate_hashes.extend(fingerprint.hashes)
             except UnicodeDecodeError:
                 logging.warning(f"Skipping {file}: file not ASCII text")
                 continue
-            fingerprint = CodeFingerprint(file, self.noise_t, 1,
-                                          filter=not self.disable_filtering,
-                                          language=self.force_language)
-            boilerplate_hashes.extend(fingerprint.hashes)
 
         return np.unique(np.array(boilerplate_hashes))
 
     def _preprocess_code(self, file_list):
+        """Generates a CodeFingerprint object for each file in the
+        provided file list. This is where the winnowing algorithm is
+        actually used.
+        """
         boilerplate_hashes = self._get_boilerplate_hashes()
 
         file_data = {}
@@ -456,29 +471,36 @@ class CopyDetector:
             print(f"{time.time()-start_time:6.2f}: Code comparison completed")
 
     def run(self):
-        """User-facing code overlap computing function. Checks for a
-        session that can be resumed from then calls _comparison_loop to
-        generate results.
+        """Runs the copy detection loop for detecting overlap between
+        test and reference files. If no files are in the provided
+        directories, the similarity matrix will remain empty and any
+        attempts to generate a report will fail.
         """
-        if len(self.test_files) == 0 or len(self.ref_files) == 0:
-            err_folder = "test"
-            if len(self.test_files) > len(self.ref_files):
-                err_folder = "reference"
-
+        if len(self.test_files) == 0:
             logging.error("Copy detector failed: No files found in "
-                          f"{err_folder} directories")
-            self.similarity_matrix = np.array([])
-            self.token_overlap_matrix = np.array([])
-            self.slice_matrix = np.array([])
-            return
-
-        self._comparison_loop()
+                          "test directories")
+        elif len(self.ref_files) == 0:
+            logging.error("Copy detector failed: No files found in "
+                          "reference directories")
+        else:
+            self._comparison_loop()
 
     def get_copied_code_list(self):
         """Get a list of copied code to display on the output report.
         Returns a list of tuples containing the similarity score, the
         test file name, the compare file name, the highlighted test
-        code, and the highlighted compare code,
+        code, and the highlighted compare code.
+
+        Returns
+        -------
+        list
+            list of similarity data between each file pair which
+            achieves a similarity score above the display threshold,
+            ordered by percentage of copying in the test file. Each
+            element of the list contains [test similarity, reference
+            similarity, path to test file, path to reference file,
+            highlighted test code, highlighted reference code, numer of
+            overlapping tokens]
         """
         if len(self.similarity_matrix) == 0:
             logging.error("Cannot generate code list: no files compared")
@@ -524,6 +546,13 @@ class CopyDetector:
         """Generates an html report listing all files with similarity
         above the display_threshold, with the copied code segments
         highlighted.
+
+        Parameters
+        ----------
+        output_mode : {"save", "return"}
+            If "save", the output will be saved to the file specified
+            by self.out_file. If "return", the output HTML will be
+            directly returned by this function.
         """
         if len(self.similarity_matrix) == 0:
             logging.error("Cannot generate report: no files compared")
