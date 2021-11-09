@@ -82,11 +82,6 @@ class CodeFingerprint:
         self.hash_idx = idx
         self.k = k
 
-        # before run() is called, similarity data should be empty
-        self.similarity_matrix = np.array([])
-        self.token_overlap_matrix = np.array([])
-        self.slice_matrix = np.array([])
-
 def compare_files(file1_data, file2_data):
     """Computes the overlap between two CodeFingerprint objects
     using the generic methods from copy_detect.py. Returns the
@@ -254,6 +249,12 @@ class CopyDetector:
         self.boilerplate_files = self._get_file_list(self.boilerplate_dirs,
                                                      self.extensions)
 
+        # before run() is called, similarity data should be empty
+        self.similarity_matrix = np.array([])
+        self.token_overlap_matrix = np.array([])
+        self.slice_matrix = np.array([])
+        self.file_data = {}
+
     def _load_config(self, config):
         """Sets member variables according to a configuration
         dictionary.
@@ -347,7 +348,8 @@ class CopyDetector:
                     logging.warning("No files found in " + dir)
                 file_list.extend(files)
 
-        return set(file_list)
+        # convert to a set to remove duplicates, then back to a list
+        return list(set(file_list))
 
     def add_file(self, filename, type="testref"):
         """Adds a file to the list of test files, reference files, or
@@ -362,14 +364,14 @@ class CopyDetector:
             test and reference file.
         """
         if type == "testref":
-            self.test_files.add(filename)
-            self.ref_files.add(filename)
+            self.test_files.append(filename)
+            self.ref_files.append(filename)
         elif type == "test":
-            self.test_files.add(filename)
+            self.test_files.append(filename)
         elif type == "ref":
-            self.ref_files.add(filename)
+            self.ref_files.append(filename)
         elif type == "boilerplate":
-            self.boilerplate_files.add(filename)
+            self.boilerplate_files.append(filename)
 
     def _get_boilerplate_hashes(self):
         """Generates a list of hashes of the boilerplate text. Returns
@@ -395,21 +397,18 @@ class CopyDetector:
         actually used.
         """
         boilerplate_hashes = self._get_boilerplate_hashes()
-
-        file_data = {}
         for code_f in tqdm(file_list, bar_format= '   {l_bar}{bar}{r_bar}',
-                disable=self.silent):
-            try:
-                file_data[code_f] = CodeFingerprint(
-                    code_f, self.noise_t, self.window_size,
-                    boilerplate_hashes, not self.disable_filtering,
-                    self.force_language)
+                           disable=self.silent):
+            if code_f not in self.file_data:
+                try:
+                    self.file_data[code_f] = CodeFingerprint(
+                        code_f, self.noise_t, self.window_size,
+                        boilerplate_hashes, not self.disable_filtering,
+                        self.force_language)
 
-            except UnicodeDecodeError:
-                logging.warning(f"Skipping {code_f}: file not ASCII text")
-                continue
-
-        return file_data
+                except UnicodeDecodeError:
+                    logging.warning(f"Skipping {code_f}: file not ASCII text")
+                    continue
 
     def _comparison_loop(self):
         """The core code used to determine code overlap. The overlap
@@ -421,51 +420,48 @@ class CopyDetector:
         start_time = time.time()
         if not self.silent:
             print("  0.00: Generating file fingerprints")
-        test_f_list = sorted(list(self.test_files))
-        self.all_files = (test_f_list
-            + sorted([f for f in self.ref_files if f not in self.test_files]))
-        self.file_data = self._preprocess_code(self.all_files)
+        self._preprocess_code(self.test_files + self.ref_files)
 
         self.similarity_matrix = np.full((
-            len(self.all_files), len(self.all_files)), -1, dtype=np.float64)
+            len(self.test_files),len(self.ref_files),2), -1, dtype=np.float64)
         self.token_overlap_matrix = np.full((
-            len(self.all_files), len(self.all_files)), -1)
-        self.slice_matrix = [[np.array([]) for _ in range(len(self.all_files))]
-                             for _ in range(len(self.all_files))]
+            len(self.test_files), len(self.ref_files)), -1)
+        self.slice_matrix = [[np.array([]) for _ in range(len(self.ref_files))]
+                             for _ in range(len(self.test_files))]
 
         if not self.silent:
             print(f"{time.time()-start_time:6.2f}: Beginning code comparison")
 
-        for i, test_f in enumerate(tqdm(test_f_list,
+        # this is used to track which files have been compared to avoid
+        # unnecessary duplication when there is overlap between the
+        # test and reference files
+        comparisons = {}
+
+        for i, test_f in enumerate(tqdm(self.test_files,
                 bar_format= '   {l_bar}{bar}{r_bar}', disable=self.silent)):
-            for j, ref_f in enumerate(self.all_files):
-                if test_f not in self.file_data or ref_f not in self.file_data:
-                    continue
-                elif test_f == ref_f:
-                    continue
-                elif self.similarity_matrix[i,j] != -1:
-                    continue
-                elif (self.all_files[i] not in self.test_files or
-                      self.all_files[j] not in self.ref_files):
+            for j, ref_f in enumerate(self.ref_files):
+                if (test_f not in self.file_data
+                        or ref_f not in self.file_data
+                        or test_f == ref_f
+                        or (self.same_name_only
+                            and (Path(test_f).name != Path(ref_f).name))
+                        or (self.ignore_leaf
+                            and (Path(test_f).parent == Path(ref_f).parent))):
                     continue
 
-                if self.same_name_only:
-                    if Path(test_f).name != Path(ref_f).name:
-                        continue
-                if self.ignore_leaf:
-                    if Path(test_f).parent == Path(ref_f).parent:
-                        continue
+                if (ref_f, test_f) in comparisons:
+                    ref_idx, test_idx = comparisons[(ref_f, test_f)]
+                    overlap = self.token_overlap_matrix[ref_idx, test_idx]
+                    sim2, sim1 = self.similarity_matrix[ref_idx, test_idx]
+                    slices2, slices1 = self.slice_matrix[ref_idx][test_idx]
+                else:
+                    overlap, (sim1, sim2), (slices1, slices2) = compare_files(
+                        self.file_data[test_f], self.file_data[ref_f])
+                    comparisons[(test_f, ref_f)] = (i, j)
 
-                overlap, (sim1,sim2), (slices1,slices2) = compare_files(
-                    self.file_data[test_f], self.file_data[ref_f])
-
-                self.similarity_matrix[i,j] = sim1
+                self.similarity_matrix[i,j] = np.array([sim1, sim2])
                 self.slice_matrix[i][j] = [slices1, slices2]
-                self.similarity_matrix[j,i] = sim2
-                self.slice_matrix[j][i] = [slices2,slices1]
-
                 self.token_overlap_matrix[i,j] = overlap
-                self.token_overlap_matrix[j,i] = overlap
 
         if not self.silent:
             print(f"{time.time()-start_time:6.2f}: Code comparison completed")
@@ -505,20 +501,15 @@ class CopyDetector:
         if len(self.similarity_matrix) == 0:
             logging.error("Cannot generate code list: no files compared")
             return []
-        x,y = np.where(self.similarity_matrix > self.display_t)
+        x,y = np.where(self.similarity_matrix[:,:,0] > self.display_t)
 
         code_list = []
-        selected_pairs = set([])
         for idx in range(len(x)):
-            test_f = self.all_files[x[idx]]
-            ref_f = self.all_files[y[idx]]
-            if test_f + ref_f in selected_pairs:
-                continue
+            test_f = self.test_files[x[idx]]
+            ref_f = self.ref_files[y[idx]]
 
-            selected_pairs.add(test_f + ref_f)
-            selected_pairs.add(ref_f + test_f)
-            test_sim = self.similarity_matrix[x[idx], y[idx]]
-            ref_sim = self.similarity_matrix[y[idx], x[idx]]
+            test_sim = self.similarity_matrix[x[idx], y[idx], 0]
+            ref_sim = self.similarity_matrix[x[idx], y[idx], 1]
             slices_test = self.slice_matrix[x[idx]][y[idx]][0]
             slices_ref = self.slice_matrix[x[idx]][y[idx]][1]
 
@@ -561,7 +552,7 @@ class CopyDetector:
         code_list = self.get_copied_code_list()
         data_dir = pkg_resources.resource_filename('copydetect', 'data/')
 
-        plot_mtx = np.copy(self.similarity_matrix)
+        plot_mtx = np.copy(self.similarity_matrix[:,:,0])
         plot_mtx[plot_mtx == -1] = np.nan
         plt.imshow(plot_mtx)
         plt.colorbar()
@@ -572,7 +563,7 @@ class CopyDetector:
         sim_mtx_base64 = base64.b64encode(sim_mtx_buffer.read()).decode()
         plt.close()
 
-        scores = self.similarity_matrix[self.similarity_matrix != -1]
+        scores=self.similarity_matrix[:,:,0][self.similarity_matrix[:,:,0]!=-1]
         plt.hist(scores, bins=20)
         plt.tight_layout()
         sim_hist_buffer = io.BytesIO()
@@ -585,7 +576,7 @@ class CopyDetector:
         with open(data_dir + "report.html") as template_fp:
             template = Template(template_fp.read())
 
-        flagged = self.similarity_matrix > self.display_t
+        flagged = self.similarity_matrix[:,:,0] > self.display_t
         flagged_file_count = np.sum(np.any(flagged, axis=1))
 
         output = template.render(test_count=len(self.test_files),
