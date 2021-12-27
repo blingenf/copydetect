@@ -39,6 +39,9 @@ class CodeFingerprint:
     filter : bool
         If set to to False, code will not be tokenized & filtered.
         Default: True
+    language : str
+        If set, will force the tokenizer to use the provided language
+        rather than guessing from the file extension.
 
     Attributes
     ----------
@@ -60,9 +63,6 @@ class CodeFingerprint:
         translating hash indexes to indexes in the filtered code.
     k : int
         Value of provided k argument.
-    language : str
-        If set, will force the tokenizer to use the provided language
-        rather than guessing from the file extension.
     """
     def __init__(self, file, k, win_size, boilerplate=[], filter=True,
                  language=None):
