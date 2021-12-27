@@ -10,6 +10,7 @@ import webbrowser
 import pkg_resources
 import io
 import base64
+from multiprocessing import Pool
 
 from tqdm import tqdm
 import numpy as np
@@ -230,6 +231,7 @@ class CopyDetector:
         self.force_language = force_language
         self.truncate = truncate
         self.out_file = out_file
+        self.use_multiprocessing = False
 
         if config is not None:
             self._load_config(config)
@@ -335,7 +337,7 @@ class CopyDetector:
         directories. Used to search test_dirs, ref_dirs, and
         boilerplate_dirs
         """
-        file_list = []
+        file_list = set()
         for dir in dirs:
             for ext in exts:
                 if ext == "*":
@@ -346,10 +348,9 @@ class CopyDetector:
 
                 if len(files) == 0:
                     logging.warning("No files found in " + dir)
-                file_list.extend(files)
+                file_list.update(files)
 
-        # convert to a set to remove duplicates, then back to a list
-        return list(set(file_list))
+        return list(file_list)
 
     def add_file(self, filename, type="testref"):
         """Adds a file to the list of test files, reference files, or
@@ -391,24 +392,53 @@ class CopyDetector:
 
         return np.unique(np.array(boilerplate_hashes))
 
+    @staticmethod
+    def _get_fingerprint(args):
+        """Computes the fingerprint for a single file. Returns None if
+        the fingerprinting failed.
+
+        Note that the argument to this function is just "args" because
+        it slightly simplifies the multiprocessing code in the
+        _preprocess_code method (and nothing else should be calling this
+        function anyway). The function is static to avoid needing to
+        copy the entire Detector for each process.
+        """
+        (code_f, noise_t, window_size, boilerplate_hashes, filter_code,
+            force_language) = args
+        try:
+            fingerprint = CodeFingerprint(code_f, noise_t, window_size,
+                                          boilerplate_hashes, filter_code,
+                                          force_language)
+        except UnicodeDecodeError:
+            logging.warning(f"Skipping {code_f}: file not ASCII text")
+            fingerprint = None
+        return fingerprint
+
     def _preprocess_code(self, file_list):
         """Generates a CodeFingerprint object for each file in the
         provided file list. This is where the winnowing algorithm is
         actually used.
         """
         boilerplate_hashes = self._get_boilerplate_hashes()
-        for code_f in tqdm(file_list, bar_format= '   {l_bar}{bar}{r_bar}',
-                           disable=self.silent):
-            if code_f not in self.file_data:
-                try:
-                    self.file_data[code_f] = CodeFingerprint(
-                        code_f, self.noise_t, self.window_size,
-                        boilerplate_hashes, not self.disable_filtering,
-                        self.force_language)
-
-                except UnicodeDecodeError:
-                    logging.warning(f"Skipping {code_f}: file not ASCII text")
-                    continue
+        code_files = [path for path in file_list if path not in self.file_data]
+        arg_list = [(code_f,self.noise_t, self.window_size, boilerplate_hashes,
+                    not self.disable_filtering, self.force_language)
+                    for code_f in code_files]
+        if self.use_multiprocessing:
+            with Pool() as p:
+                for i, fingerprint in tqdm(
+                            enumerate(p.imap(self._get_fingerprint, arg_list)),
+                        disable=self.silent, total=len(code_files),
+                        bar_format='   {l_bar}{bar}{r_bar}'):
+                    if fingerprint is not None:
+                        self.file_data[code_files[i]] = fingerprint
+        else:
+            for i, args in tqdm(enumerate(arg_list), disable=self.silent,
+                                total=len(code_files),
+                                bar_format='   {l_bar}{bar}{r_bar}'):
+                fingerprint = self._get_fingerprint(args)
+                if fingerprint is not None:
+                    self.file_data[code_files[i]] = fingerprint
 
     def _comparison_loop(self):
         """The core code used to determine code overlap. The overlap

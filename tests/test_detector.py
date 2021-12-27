@@ -211,3 +211,16 @@ class TestParameters():
         detector.generate_html_report()
 
         assert Path(tmpdir + "/report.html").exists()
+
+    def test_multiprocessing(self):
+        # this doesn't currently verify that multiprocessing is being
+        # used, just that enabling it doesn't break anything
+        detector = CopyDetector(
+            test_dirs=[TESTS_DIR + "/sample_py/boilerplate"],
+            noise_t=10, guarantee_t=10, silent=True)
+        detector.use_multiprocessing = True
+        detector.add_file(str(Path(TESTS_DIR + "/sample_py/handout.py")))
+        detector.run()
+        code_list = detector.get_copied_code_list()
+
+        assert len(code_list) == 1
