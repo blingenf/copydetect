@@ -12,9 +12,9 @@ def _winnow(hashes, window_size):
     buffer = np.full(window_size, np.inf)
     r = 0
     min_idx = 0
-    for hash_idx, hash in enumerate(hashes):
+    for hash_idx, hash_val in enumerate(hashes):
         r = (r + 1) % window_size
-        buffer[r] = hash
+        buffer[r] = hash_val
 
         if min_idx == r:
             i = (r - 1) % window_size

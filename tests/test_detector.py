@@ -24,9 +24,14 @@ class TestTwoFileDetection():
         detector = CopyDetector(config, silent=True)
         detector.run()
 
-        assert np.array_equal(np.array([[-1,1137/2052],[1137/1257,-1]]),
-                              detector.similarity_matrix)
-        assert np.array_equal(np.array([[-1,1137],[1137,-1]]),
+        # file order is not guaranteed, so there are two possible
+        # similarity matrices depending on the order of the files
+        possible_mtx_1 = np.array([[[-1,-1], [1137/2052,1137/1257]],
+                                  [[1137/1257,1137/2052], [-1,-1]]])
+        possible_mtx_2 = np.flip(possible_mtx_1, 2)
+        assert (np.array_equal(possible_mtx_1, detector.similarity_matrix)
+                or np.array_equal(possible_mtx_2, detector.similarity_matrix))
+        assert np.array_equal(np.array([[-1, 1137],[1137,-1]]),
                               detector.token_overlap_matrix)
 
         html_out = detector.generate_html_report(output_mode="return")
@@ -46,7 +51,8 @@ class TestTwoFileDetection():
         detector.add_file(TESTS_DIR + "/sample_py/code/sample2.py")
         detector.run()
 
-        assert np.array_equal(np.array([[-1,1137/2052],[1137/1257,-1]]),
+        assert np.array_equal(np.array([[[-1,-1], [1137/2052,1137/1257]],
+                                        [[1137/1257,1137/2052], [-1,-1]]]),
                               detector.similarity_matrix)
         assert np.array_equal(np.array([[-1,1137],[1137,-1]]),
                               detector.token_overlap_matrix)
@@ -82,7 +88,7 @@ class TestTwoFileDetection():
         detector = CopyDetector(config, silent=True)
         detector.run()
 
-        assert np.array_equal(np.array([[-1,0],[0,-1]]),
+        assert np.array_equal(np.array([[[-1,-1],[0,0]],[[0,0],[-1,-1]]]),
                               detector.similarity_matrix)
         assert np.array_equal(np.array([[-1,0],[0,-1]]),
                               detector.token_overlap_matrix)
@@ -105,10 +111,10 @@ class TestTwoFileDetection():
         detector.run()
         html_out = detector.generate_html_report()
 
-        skipped_files = detector.similarity_matrix == -1
-        assert np.all(detector.similarity_matrix[~skipped_files] >= 0)
-        assert np.any(detector.similarity_matrix[~skipped_files] > 0)
-        assert np.all(detector.similarity_matrix[~skipped_files] <= 1)
+        skipped_files = detector.similarity_matrix[:,:,0] == -1
+        assert np.all(detector.similarity_matrix[~skipped_files, 0] >= 0)
+        assert np.any(detector.similarity_matrix[~skipped_files, 0] > 0)
+        assert np.all(detector.similarity_matrix[~skipped_files, 0] <= 1)
         assert np.all(detector.token_overlap_matrix[~skipped_files] >= 0)
 
 class TestTwoFileAPIDetection():
@@ -147,7 +153,7 @@ class TestParameters():
 
         # sample1 and sample2 should not have been compared
         # + 4 self compares = 6 total skips
-        assert np.sum(detector.similarity_matrix == -1) == 6
+        assert np.sum(detector.similarity_matrix[:,:,0] == -1) == 6
 
     def test_same_name_only(self):
         detector = CopyDetector(test_dirs=[TESTS_DIR + "/sample_py"],
@@ -155,7 +161,7 @@ class TestParameters():
         detector.run()
 
         # the only comparison should be between the two handout.py files
-        assert np.sum(detector.similarity_matrix != -1) == 2
+        assert np.sum(detector.similarity_matrix[:,:,0] != -1) == 2
 
     def test_disable_filtering(self):
         detector = CopyDetector(test_dirs=[TESTS_DIR + "/sample_py"],
