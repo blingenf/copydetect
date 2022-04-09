@@ -121,11 +121,11 @@ def compare_files(file1_data, file2_data):
     token_overlap2 = np.sum(slices2[1] - slices2[0])
 
     if len(file1_data.filtered_code) > 0:
-        similarity1 = token_overlap1 / len(file1_data.filtered_code)
+        similarity1 = len(idx1) / len(file1_data.hashes)
     else:
         similarity1 = 0
     if len(file2_data.filtered_code) > 0:
-        similarity2 = token_overlap2 / len(file2_data.filtered_code)
+        similarity2 = len(idx2) / len(file2_data.hashes)
     else:
         similarity2 = 0
 
