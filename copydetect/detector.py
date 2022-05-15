@@ -35,9 +35,13 @@ class CodeFingerprint:
     boilerplate : array_like, optional
         List of fingerprints to use as boilerplate. Any fingerprints
         present in this list will be discarded from the hash list.
-    filter : bool
+    filter : bool, default=True
         If set to to False, code will not be tokenized & filtered.
-        Default: True
+    fp : TextIO, default=None
+        I/O stream for data to create a fingerprint for. If provided,
+        the "file" argument will not be used to load a file from disk
+        but will still be used for language detection and displayed on
+        the report.
 
     Attributes
     ----------
