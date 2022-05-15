@@ -64,9 +64,12 @@ class CodeFingerprint:
         rather than guessing from the file extension.
     """
     def __init__(self, file, k, win_size, boilerplate=[], filter=True,
-                 language=None):
-        with open(file) as code_fp:
-            code = code_fp.read()
+                 language=None, fp=None):
+        if fp is not None:
+            code = fp.read()
+        else:
+            with open(file) as code_fp:
+                code = code_fp.read()
         if filter:
             filtered_code, offsets = filter_code(code, file, language)
         else:
