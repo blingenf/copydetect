@@ -511,9 +511,14 @@ class CopyDetector:
         x,y = np.where(self.similarity_matrix[:,:,0] > self.display_t)
 
         code_list = []
+        file_pairs = set()
         for idx in range(len(x)):
             test_f = self.test_files[x[idx]]
             ref_f = self.ref_files[y[idx]]
+            if (ref_f, test_f) in file_pairs:
+                # if comparison is already in report, don't add it again
+                continue
+            file_pairs.add((test_f, ref_f))
 
             test_sim = self.similarity_matrix[x[idx], y[idx], 0]
             ref_sim = self.similarity_matrix[x[idx], y[idx], 1]
