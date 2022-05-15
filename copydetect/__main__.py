@@ -1,12 +1,18 @@
-from .detector import CopyDetector
-from . import __version__
-import numpy as np
-import os
-import sys
+"""This module contains the command line interface for copydetect. User
+parameters are used to initialize a CopyDetector object, then the
+detector is run and used to generate an output HTML report.
+"""
+
 import json
 import argparse
 
+from .detector import CopyDetector
+from . import __version__
+
 def main():
+    """main function for parsing command line arguments and running the
+    detector
+    """
     parser = argparse.ArgumentParser(prog="copydetect",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("-c", "--conf", metavar="CONFIGURATION.JSON",

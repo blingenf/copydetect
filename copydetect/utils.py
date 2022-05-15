@@ -3,11 +3,13 @@ as well as generic functions for detecting overlap between two
 documents.
 """
 
+import logging
+
 from pygments import lexers, token
 import pygments.util
 import numpy as np
-import logging
 from markupsafe import escape
+
 # if the C extention is available, use it. For almost all use cases
 # the speed difference is not significant so if the C extention isn't
 # found copydetect will silenty switch to the python implementation.
