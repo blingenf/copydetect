@@ -37,8 +37,8 @@ class TestTwoFileDetection():
         html_out = detector.generate_html_report(output_mode="return")
 
         # verify highlighting code isn't being escaped
-        test_str1 = "data[2] = [</span>0<span class='highlight-red'>, 6, 1]"
-        test_str2 = "data[2] = [</span>3<span class='highlight-green'>, 6, 1]"
+        test_str1 = "data[2] = [</span>0<span class='highlight-"
+        test_str2 = "data[2] = [</span>3<span class='highlight-"
         # verify input code is being escaped
         test_str3 = "print(&#34;Incorrect num&#34;"
         assert test_str1 in html_out
