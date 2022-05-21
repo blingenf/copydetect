@@ -162,6 +162,9 @@ class CopyDetector:
         below. If provided, parameters set in the configuration
         dictionary will overwrite default parameters and other
         parameters passed to the initialization function.
+
+        Note that this parameter is deprecated and will be removed in a
+        future version.
     test_dirs : list
         (test_directories) A list of directories to recursively search
         for files to check for plagiarism.
@@ -316,7 +319,7 @@ class CopyDetector:
         CopyDetector
             Detection object initialized with config
         """
-        return CopyDetector(**cls._read_config(config))
+        return cls(**cls._read_config(config))
 
     def _load_config(self, config):
         """Sets member variables according to a configuration
