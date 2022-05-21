@@ -8,6 +8,7 @@ import argparse
 
 from .detector import CopyDetector
 from . import __version__
+from . import defaults
 
 def main():
     """main function for parsing command line arguments and running the
@@ -35,15 +36,18 @@ def main():
     parser.add_argument("-e", "--extensions", nargs='+', default=["*"],
                         metavar="EXTENSIONS",
                         help="list of file extensions to collect code from")
-    parser.add_argument("-n", "--noise-thresh", default=25, type=int,
+    parser.add_argument("-n", "--noise-thresh",
+                        default=defaults.NOISE_THRESHOLD, type=int,
                         metavar="NOISE-THRESHOLD",
                         help="length of minimum number of matching characters "
                         "which should be considered copied")
-    parser.add_argument("-g", "--guarantee-thresh", default=30, type=int,
+    parser.add_argument("-g", "--guarantee-thresh",
+                        default=defaults.GUARANTEE_THRESHOLD, type=int,
                         metavar="GUARANTEE-THRESHOLD",
                         help="length of minimum number of matching characters "
                         "which the parser is guaranteed to detect as copied")
-    parser.add_argument("-d", "--display-thresh", default=.33, type=float,
+    parser.add_argument("-d", "--display-thresh",
+                        default=defaults.DISPLAY_THRESHOLD, type=float,
                         metavar="DISPLAY-THRESHOLD",
                         help="percentage of copied code considered interesting"
                         " enough to display on the report")
@@ -108,7 +112,7 @@ def main():
                      "list of test directories (-t) must be provided.")
 
     # get overlapping code
-    detector = CopyDetector(config)
+    detector = CopyDetector.from_config(config)
     detector.run()
     detector.generate_html_report()
 
