@@ -10,6 +10,7 @@ import webbrowser
 import pkg_resources
 import io
 import base64
+import warnings
 
 from tqdm import tqdm
 import numpy as np
@@ -18,6 +19,7 @@ from jinja2 import Template
 
 from .utils import (filter_code, highlight_overlap, get_copied_slices,
                     get_document_fingerprints, find_fingerprint_overlap)
+from . import defaults
 
 class CodeFingerprint:
     """Class for tokenizing, filtering, fingerprinting, and winnowing
@@ -160,6 +162,9 @@ class CopyDetector:
         below. If provided, parameters set in the configuration
         dictionary will overwrite default parameters and other
         parameters passed to the initialization function.
+
+        Note that this parameter is deprecated and will be removed in a
+        future version.
     test_dirs : list
         (test_directories) A list of directories to recursively search
         for files to check for plagiarism.
@@ -215,10 +220,27 @@ class CopyDetector:
     """
     def __init__(self, config=None, test_dirs=[], ref_dirs=[],
                  boilerplate_dirs=[], extensions=["*"],
-                 noise_t=25, guarantee_t=30, display_t=0.33,
+                 noise_t=defaults.NOISE_THRESHOLD,
+                 guarantee_t=defaults.GUARANTEE_THRESHOLD,
+                 display_t=defaults.DISPLAY_THRESHOLD,
                  same_name_only=False, ignore_leaf=False, autoopen=True,
                  disable_filtering=False, force_language=None,
                  truncate=False, out_file="./report.html", silent=False):
+        if config is not None:
+            # temporary workaround to ensure existing code continues
+            # to work
+            warnings.warn(
+                "use CopyDetector.from_config to initialize CopyDetector from "
+                "a config file. The config parameter is deprecated and will be"
+                " removed in a future version.",
+                DeprecationWarning, stacklevel=2
+            )
+            args = locals()
+            del args["self"]
+            del args["config"]
+            self.__init__(**{**args, **self._read_config(config)})
+            return
+
         self.silent = silent
         self.test_dirs = test_dirs
         if len(ref_dirs) == 0:
@@ -237,9 +259,6 @@ class CopyDetector:
         self.force_language = force_language
         self.truncate = truncate
         self.out_file = out_file
-
-        if config is not None:
-            self._load_config(config)
 
         self._check_arguments()
 
@@ -261,6 +280,46 @@ class CopyDetector:
         self.token_overlap_matrix = np.array([])
         self.slice_matrix = np.array([])
         self.file_data = {}
+
+    @staticmethod
+    def _read_config(config: dict) -> dict:
+        """Helper function for translating json configuration parameters
+        to the arguments taken by __init__
+        """
+        config_param_mapping = {
+            "noise_threshold": "noise_t",
+            "guarantee_threshold": "guarantee_t",
+            "display_threshold": "display_t",
+            "test_directories": "test_dirs",
+            "reference_directories": "ref_dirs",
+            "boilerplate_directories": "boilerplate_dirs"
+        }
+        for conf_key, param_key in config_param_mapping.items():
+            if conf_key in config:
+                config[param_key] = config[conf_key]
+                del config[conf_key]
+        if "disable_autoopen" in config:
+            config["autoopen"] = not config["disable_autoopen"]
+            del config["disable_autoopen"]
+
+        return config
+
+    @classmethod
+    def from_config(cls, config):
+        """Initializes a CopyDetection object using the provided
+        configuration dictionary.
+
+        Parameters
+        ----------
+        config : dict
+            Configuration dictionary using CLI parameter names.
+
+        Returns
+        -------
+        CopyDetector
+            Detection object initialized with config
+        """
+        return cls(**cls._read_config(config))
 
     def _load_config(self, config):
         """Sets member variables according to a configuration
