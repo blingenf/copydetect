@@ -18,7 +18,8 @@ import matplotlib.pyplot as plt
 from jinja2 import Template
 
 from .utils import (filter_code, highlight_overlap, get_copied_slices,
-                    get_document_fingerprints, find_fingerprint_overlap)
+                    get_document_fingerprints, find_fingerprint_overlap,
+                    get_token_coverage)
 from . import defaults
 
 class CodeFingerprint:
@@ -68,6 +69,10 @@ class CodeFingerprint:
     language : str
         If set, will force the tokenizer to use the provided language
         rather than guessing from the file extension.
+    token_coverage : int
+        The number of tokens in the tokenized code which are considered
+        for fingerprint comparison, after dropping duplicate k-grams and
+        performing winnowing.
     """
     def __init__(self, file, k, win_size, boilerplate=[], filter=True,
                  language=None, fp=None):
@@ -90,6 +95,7 @@ class CodeFingerprint:
         self.hashes = hashes
         self.hash_idx = idx
         self.k = k
+        self.token_coverage = get_token_coverage(idx, k, len(filtered_code))
 
 def compare_files(file1_data, file2_data):
     """Computes the overlap between two CodeFingerprint objects
@@ -130,11 +136,11 @@ def compare_files(file1_data, file2_data):
     token_overlap2 = np.sum(slices2[1] - slices2[0])
 
     if len(file1_data.filtered_code) > 0:
-        similarity1 = len(idx1) / len(file1_data.hashes)
+        similarity1 = token_overlap1 / file1_data.token_coverage
     else:
         similarity1 = 0
     if len(file2_data.filtered_code) > 0:
-        similarity2 = len(idx2) / len(file2_data.hashes)
+        similarity2 = token_overlap2 / file2_data.token_coverage
     else:
         similarity2 = 0
 

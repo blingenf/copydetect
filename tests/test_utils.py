@@ -172,3 +172,20 @@ class TestTokenizerOtherSamples():
         # String isn't a primitive type in java so it's tokenized as
         # Token.Name, which can't be differentiated from normal variables
         assert "@OverridepublicVF" in out_code
+
+    def test_get_token_coverage(self):
+        sample = "0123456789"
+        idx1 = np.array([0, 5])
+
+        # two 5-grams starting at 0 and 5 cover all 10 tokens
+        assert cd.get_token_coverage(idx1, 5, len(sample)) == len(sample)
+
+        # with 3-grams, 3, 4, 8, and 9 are not covered
+        assert cd.get_token_coverage(idx1, 3, len(sample)) == len(sample) - 4
+
+        # with 1-grams only 0 and 5 are covered
+        assert cd.get_token_coverage(idx1, 1, len(sample)) == 2
+
+        # k-gram overlap shouldn't matter
+        idx = np.arange(8)
+        assert cd.get_token_coverage(idx, 3, len(sample)) == len(sample)

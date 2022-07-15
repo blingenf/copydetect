@@ -198,3 +198,12 @@ def highlight_overlap(doc, slices, left_hl, right_hl,
     new_doc += post_highlight
 
     return new_doc, hl_percent
+
+def get_token_coverage(idx, k, token_len):
+    """Determines the number of tokens in the original document which
+    are included in the winnowed indices
+    """
+    coverage = np.zeros(token_len)
+    for offset in range(k):
+        coverage[idx + offset] = 1
+    return np.sum(coverage)
