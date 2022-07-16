@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+<list>
+   <item id="item1">
+      <field1>aa</field1>
+      <field2>ab</field2>
+      <field3>ac</field3>
+   </item>
+   <item id="item2">
+      <field1>ba</field1>
+      <field2>bb</field2>
+      <field3>bc</field3>
+   </item>
+   <item id="item3">
+      <field1>ca</field1>
+      <field2>cb</field2>
+      <field3>cc</field3>
+   </item>
+   <item id="item4">
+      <field1>da</field1>
+      <field2>db</field2>
+      <field3>dc</field3>
+   </item>
+   <item id="item5">
+      <field1>ea</field1>
+      <field2>eb</field2>
+      <field3>ec</field3>
+   </item>
+   <item id="item6">
+      <field1>fa</field1>
+      <field2>fb</field2>
+      <field3>fc</field3>
+   </item>
+   <item id="item7">
+      <field1>ga</field1>
+      <field2>gb</field2>
+      <field3>gc</field3>
+   </item>
+</list>

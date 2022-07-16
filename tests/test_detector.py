@@ -26,8 +26,8 @@ class TestTwoFileDetection():
 
         # file order is not guaranteed, so there are two possible
         # similarity matrices depending on the order of the files
-        possible_mtx_1 = np.array([[[-1, -1], [950/1660, 950/1167]],
-                                  [[950/1167, 950/1660], [-1, -1]]])
+        possible_mtx_1 = np.array([[[-1, -1], [1137/1829,1137/1257]],
+                                  [[1137/1257,1137/1829], [-1, -1]]])
         possible_mtx_2 = np.flip(possible_mtx_1, 2)
         assert (np.array_equal(possible_mtx_1, detector.similarity_matrix)
                 or np.array_equal(possible_mtx_2, detector.similarity_matrix))
@@ -51,8 +51,8 @@ class TestTwoFileDetection():
         detector.add_file(TESTS_DIR + "/sample_py/code/sample2.py")
         detector.run()
 
-        assert np.array_equal(np.array([[[-1, -1], [950/1660, 950/1167]],
-                                        [[950/1167, 950/1660], [-1, -1]]]),
+        assert np.array_equal(np.array([[[-1, -1], [1137/1829,1137/1257]],
+                                        [[1137/1257,1137/1829], [-1, -1]]]),
                               detector.similarity_matrix)
         assert np.array_equal(np.array([[-1,1137],[1137,-1]]),
                               detector.token_overlap_matrix)
@@ -127,8 +127,8 @@ class TestTwoFileAPIDetection():
         token_overlap, similarities, slices = compare_files(fp1, fp2)
 
         assert token_overlap == 1137
-        assert similarities[0] == 950/1660
-        assert similarities[1] == 950/1167
+        assert similarities[0] == 1137/1829
+        assert similarities[1] == 1137/1257
 
     def test_compare_boilerplate(self):
         bp_fingerprint = CodeFingerprint(
