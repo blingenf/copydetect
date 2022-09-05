@@ -4,6 +4,7 @@ documents.
 """
 
 import logging
+import warnings
 
 from pygments import lexers, token
 import pygments.util
@@ -160,7 +161,11 @@ def highlight_overlap(doc, slices, left_hl, right_hl,
     an integer, everything not within that many lines of highlighted
     code will be replaced with "..."
     """
-    hl_percent = np.sum(slices[1] - slices[0])/len(doc)
+    if slices.shape[0] > 0:
+        hl_percent = np.sum(slices[1] - slices[0])/len(doc)
+    else:
+        warnings.warn("empty slices array")
+        return doc, 0
 
     new_doc = ""
     current_idx = 0
