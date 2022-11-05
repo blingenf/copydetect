@@ -79,7 +79,7 @@ class CodeFingerprint:
         if fp is not None:
             code = fp.read()
         else:
-            with open(file) as code_fp:
+            with open(file, encoding="utf-8") as code_fp:
                 code = code_fp.read()
         if filter:
             filtered_code, offsets = filter_code(code, file, language)
