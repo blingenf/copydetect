@@ -1,5 +1,4 @@
 from setuptools import setup, Extension
-from copydetect import __version__
 
 with open("README.md", "r") as readme_fp:
     readme = readme_fp.read()
@@ -12,7 +11,7 @@ with open("README.md", "r") as readme_fp:
 setup(name="copydetect",
       author="Bryson Lingenfelter",
       author_email="blingenfelter@nevada.unr.edu",
-      version=__version__,
+      version="0.4.3",
       description="Code plagiarism detection tool",
       long_description=readme,
       long_description_content_type="text/markdown",
