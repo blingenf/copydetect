@@ -86,7 +86,7 @@ def main():
     args = parser.parse_args()
 
     if args.conf:
-        with open(args.conf) as json_fp:
+        with open(args.conf, encoding="utf-8") as json_fp:
             config = json.load(json_fp)
     elif args.test_dirs:
         if not args.ref_dirs:

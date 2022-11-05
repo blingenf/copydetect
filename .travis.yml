@@ -1,10 +1,13 @@
 language: python
 jobs:
   include:
-    - name: "Python 3.6 on Xenial Linux"
+    - name: "Python 3.6"
       python: 3.6
-    - name: "Python 3.8 on Xenial Linux"
+    - name: "Python 3.8"
       python: 3.8
+    - name: "Python 3.10"
+      python: 3.10
+      dist: focal
     - name: "Python 3.7.4 on macOS"
       os: osx
       osx_image: xcode11.2
