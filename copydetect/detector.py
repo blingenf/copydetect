@@ -284,7 +284,7 @@ class CopyDetector:
         # before run() is called, similarity data should be empty
         self.similarity_matrix = np.array([])
         self.token_overlap_matrix = np.array([])
-        self.slice_matrix = np.array([])
+        self.slice_matrix = {}
         self.file_data = {}
 
     @staticmethod
@@ -494,12 +494,15 @@ class CopyDetector:
             print("  0.00: Generating file fingerprints")
         self._preprocess_code(self.test_files + self.ref_files)
 
-        self.similarity_matrix = np.full((
-            len(self.test_files),len(self.ref_files),2), -1, dtype=np.float64)
-        self.token_overlap_matrix = np.full((
-            len(self.test_files), len(self.ref_files)), -1)
-        self.slice_matrix = [[np.array([]) for _ in range(len(self.ref_files))]
-                             for _ in range(len(self.test_files))]
+        self.similarity_matrix = np.full(
+            (len(self.test_files), len(self.ref_files), 2),
+            -1,
+            dtype=np.float64,
+        )
+        self.token_overlap_matrix = np.full(
+            (len(self.test_files), len(self.ref_files)), -1
+        )
+        self.slice_matrix = {}
 
         if not self.silent:
             print(f"{time.time()-start_time:6.2f}: Beginning code comparison")
@@ -525,15 +528,23 @@ class CopyDetector:
                     ref_idx, test_idx = comparisons[(ref_f, test_f)]
                     overlap = self.token_overlap_matrix[ref_idx, test_idx]
                     sim2, sim1 = self.similarity_matrix[ref_idx, test_idx]
-                    slices2, slices1 = self.slice_matrix[ref_idx][test_idx]
+
+                    mtx_key = (ref_idx, test_idx)
+                    if mtx_key in self.slice_matrix:
+                        slices2, slices1 = self.slice_matrix[mtx_key]
+                    else:
+                        # slices not in matrix, so files have no overlap
+                        slices2, slices1 = np.array([]), np.array([])
                 else:
                     overlap, (sim1, sim2), (slices1, slices2) = compare_files(
-                        self.file_data[test_f], self.file_data[ref_f])
+                        self.file_data[test_f], self.file_data[ref_f]
+                    )
                     comparisons[(test_f, ref_f)] = (i, j)
 
-                self.similarity_matrix[i,j] = np.array([sim1, sim2])
-                self.slice_matrix[i][j] = [slices1, slices2]
-                self.token_overlap_matrix[i,j] = overlap
+                self.similarity_matrix[i, j] = np.array([sim1, sim2])
+                if slices1.shape[0] != 0:
+                    self.slice_matrix[(i, j)] = [slices1, slices2]
+                self.token_overlap_matrix[i, j] = overlap
 
         if not self.silent:
             print(f"{time.time()-start_time:6.2f}: Code comparison completed")
@@ -587,8 +598,8 @@ class CopyDetector:
 
             test_sim = self.similarity_matrix[x[idx], y[idx], 0]
             ref_sim = self.similarity_matrix[x[idx], y[idx], 1]
-            slices_test = self.slice_matrix[x[idx]][y[idx]][0]
-            slices_ref = self.slice_matrix[x[idx]][y[idx]][1]
+            slices_test = self.slice_matrix[(x[idx], y[idx])][0]
+            slices_ref = self.slice_matrix[(x[idx], y[idx])][1]
 
             if self.truncate:
                 truncate = 10
