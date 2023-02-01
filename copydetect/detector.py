@@ -650,7 +650,7 @@ class CopyDetector:
         plt.close()
 
         # render template with jinja and save as html
-        with open(data_dir + "report.html") as template_fp:
+        with open(data_dir + "report.html", encoding="utf-8") as template_fp:
             template = Template(template_fp.read())
 
         flagged = self.similarity_matrix[:,:,0] > self.display_t
@@ -664,7 +664,7 @@ class CopyDetector:
                                  sim_hist_base64=sim_hist_base64)
 
         if output_mode == "save":
-            with open(self.out_file, "w") as report_f:
+            with open(self.out_file, "w", encoding="utf-8") as report_f:
                 report_f.write(output)
 
             if not self.silent:
