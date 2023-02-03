@@ -595,8 +595,8 @@ class CopyDetector:
                 slices_test = self.slice_matrix[(x[idx], y[idx])][0]
                 slices_ref = self.slice_matrix[(x[idx], y[idx])][1]
             else:
-                slices_test = self.slice_matrix[(y[idx], x[idx])][0]
-                slices_ref = self.slice_matrix[(y[idx], x[idx])][1]
+                slices_test = self.slice_matrix[(y[idx], x[idx])][1]
+                slices_ref = self.slice_matrix[(y[idx], x[idx])][0]
 
             if self.truncate:
                 truncate = 10
