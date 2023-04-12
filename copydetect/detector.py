@@ -11,9 +11,11 @@ import pkg_resources
 import io
 import base64
 import warnings
+import os.path
 
 from tqdm import tqdm
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 from jinja2 import Template
 
@@ -219,8 +221,12 @@ class CopyDetector:
     truncate : bool
         If true, highlighted code will be truncated to remove non-
         highlighted regions from the displayed output
-    out_file : str
-        Path to output report file.
+    html_file : str
+        Path to HTML report file.
+    pdf_file : str
+        Path to PDF report file.
+    csv_file : str
+        Path to CSV report file.
     silent : bool
         If true, all logging output will be supressed.
     """
@@ -231,7 +237,8 @@ class CopyDetector:
                  display_t=defaults.DISPLAY_THRESHOLD,
                  same_name_only=False, ignore_leaf=False, autoopen=True,
                  disable_filtering=False, force_language=None,
-                 truncate=False, out_file="./report.html", silent=False):
+                 truncate=False, html_file="./report.html", pdf_file=None,
+                 csv_file=None, silent=False):
         if config is not None:
             # temporary workaround to ensure existing code continues
             # to work
@@ -264,15 +271,19 @@ class CopyDetector:
         self.disable_filtering = disable_filtering
         self.force_language = force_language
         self.truncate = truncate
-        self.out_file = out_file
+        self.html_file = html_file
+        self.pdf_file = pdf_file
+        self.csv_file = csv_file
 
         self._check_arguments()
 
-        out_path = Path(self.out_file)
-        if out_path.is_dir():
-            self.out_file += "/report.html"
-        elif out_path.suffix != ".html":
-            self.out_file = str(out_path) + ".html"
+        for ext in ("html", "pdf", "csv"):
+            path = Path(getattr(self, f"{ext}_file")
+                        or Path(self.html_file).with_suffix(f".{ext}"))
+            if path.is_dir():
+                setattr(self, f"{ext}_file", str(path / f"report.{ext}"))
+            elif path.suffix != f".{ext}":
+                setattr(self, f"{ext}_file", str(path.with_suffix(f".{ext}")))
 
         self.window_size = self.guarantee_t - self.noise_t + 1
 
@@ -353,8 +364,9 @@ class CopyDetector:
             self.autoopen = not config["disable_autoopen"]
         if "truncate" in config:
             self.truncate = config["truncate"]
-        if "out_file" in config:
-            self.out_file = config["out_file"]
+        for ext in ("html", "pdf", "csv"):
+            if f"{ext}_file" in config:
+                setattr(self, f"{ext}_file", config[f"{ext}_file"])
 
     def _check_arguments(self):
         """type/value checking helper function for __init__"""
@@ -398,9 +410,10 @@ class CopyDetector:
                              "equal to noise threshold")
         if self.display_t > 1 or self.display_t < 0:
             raise ValueError("Display threshold must be between 0 and 1")
-        if not Path(self.out_file).parent.exists():
-            raise ValueError("Invalid output file path "
-                "(directory does not exist)")
+        for ext in ("html", "pdf", "csv"):
+            if not Path(getattr(self, f"{ext}_file")).parent.exists():
+                raise ValueError("Invalid output file path "
+                    "(directory does not exist)")
 
     def _get_file_list(self, dirs, exts):
         """Recursively collects list of files from provided
@@ -627,7 +640,7 @@ class CopyDetector:
         ----------
         output_mode : {"save", "return"}
             If "save", the output will be saved to the file specified
-            by self.out_file. If "return", the output HTML will be
+            by self.html_file. If "return", the output HTML will be
             directly returned by this function.
         """
         if len(self.similarity_matrix) == 0:
@@ -672,14 +685,143 @@ class CopyDetector:
                                  sim_hist_base64=sim_hist_base64)
 
         if output_mode == "save":
-            with open(self.out_file, "w", encoding="utf-8") as report_f:
+            with open(self.html_file, "w", encoding="utf-8") as report_f:
                 report_f.write(output)
 
             if not self.silent:
-                print(f"Output saved to {self.out_file.replace('//', '/')}")
+                print(f"HTML report saved to {self.html_file.replace('//', '/')}")
             if self.autoopen:
-                webbrowser.open('file://' + str(Path(self.out_file).resolve()))
+                webbrowser.open('file://' + str(Path(self.html_file).resolve()))
         elif output_mode == "return":
             return output
         else:
             raise ValueError("output_mode not supported")
+
+    _basename = None
+    def basename(self, p):
+        """Generate a short name for test/ref files.
+
+        Parameters
+        ----------
+        p : a path to be shortened
+        """
+        if self._basename is None:
+            prefix = os.path.commonpath(self.test_files + self.ref_files)
+            def basename(p):
+                return str(Path(p).relative_to(prefix))
+            self._basename = basename
+        return self._basename(p)
+
+    def _get_sim(self, neg, nan):
+        """Return the similarity matrix as a pandas.DataFrame whose
+        index and columns are the shortened file names.
+
+        Parameters
+        ----------
+        neg : float
+            value to use instead of -1 in the returned matrix
+        nan : float
+            value to use instead of NaN in the returned matrix
+        """
+        rows = [self.basename(f) for f in self.test_files]
+        cols = [self.basename(f) for f in self.ref_files]
+        sim = pd.DataFrame(data=self.similarity_matrix[:,:,0], index=rows, columns=cols)
+        sim[sim < 0] = neg
+        sim.fillna(nan, inplace=True)
+        return sim
+
+    def generate_csv_report(self, neg=1.0, nan=1.0):
+        """Save similarity matrix to a CSV file.
+
+        Parameters
+        ----------
+        neg : float
+            value to use instead of -1 in the returned matrix
+        nan : float
+            value to use instead of NaN in the returned matrix
+        """
+        sim = self._get_sim(neg, nan)
+        sim.to_csv(self.csv_file)
+        if not self.silent:
+            print(f"CSV report saved to {str(self.csv_file).replace('//', '/')}")
+
+    def generate_pdf_report(self, prune=.5, **args):
+        """Generate a clickable heatmap in a PDF file,
+        clicks link to the corresponding match in HTML report.
+
+        Parameters
+        ----------
+        prune : float (default: .5)
+            simplify the heatmapby removing all rows/cols whose values
+            are all <= prune, normalised to 0 <= prune <= 1
+        args :
+            arguments to the functions that perform the drawing
+            'sns_A=V' call 'seaborn.clustermap' with arg 'A=V'
+            'lnk_A=V' call 'scipy.cluster.hierarchy.linkage' with 'A=V'
+            'plt_A=V' call 'matplotlib.pyplot.savefig' with 'A=V'
+        """
+        # late import to speedup program startup when PDF is not generated
+        import seaborn as sns
+        from scipy.cluster.hierarchy import linkage
+        prune = min(1.0, max(0.0, prune))
+        # extract meaningfull similarities
+        sim = self._get_sim(-1, -1)
+        neg = sim <= prune
+        drop = list(set(sim.index[neg.all(axis="index")])
+                    & set(sim.columns[neg.all(axis="columns")]))
+        if drop:
+            sim.drop(index=drop, inplace=True)
+            sim.drop(columns=drop, inplace=True)
+        sim[sim < 0] = 1
+        if len(sim.index) <= 1 or len(sim.columns) <= 1:
+            logging.error("not enough row/cols left after pruning")
+            return
+        # extract args
+        kw = {"lnk": {},
+              "sns": {"vmax": 1.0,
+                      "vmin": 0.0,
+                      "cmap": "RdYlBu_r"},
+              "plt": {}}
+        for key, val in args.items():
+            if key[:3] in kw and key[3:4] == "_":
+                kw[key[:3]][key[4:]] = val
+            else:
+                raise TypeError(f"unexpected argument {key!r}")
+        kw["sns"].setdefault("xticklabels", 1)
+        kw["sns"].setdefault("yticklabels", 1)
+        # draw heatmap
+        link = linkage(sim, **kw["lnk"])
+        cg = sns.clustermap(sim, row_linkage=link, col_linkage=link, **kw["sns"])
+        if len(sim.columns) > 50:
+            size = max(2, 350/len(sim.columns))
+            plt.setp(cg.ax_heatmap.xaxis.get_majorticklabels(), fontsize=size)
+        if len(sim.index) > 50:
+            size = max(2, 350/len(sim.index))
+            plt.setp(cg.ax_heatmap.yaxis.get_majorticklabels(), fontsize=size)
+        plt.setp(cg.ax_heatmap.yaxis.get_majorticklabels(), rotation=0)
+        plt.setp(cg.ax_heatmap.xaxis.get_majorticklabels(), rotation=90)
+        ax = cg.ax_heatmap
+        xl = [t.label1.get_text() for t in ax.xaxis.get_major_ticks()]
+        yl = [t.label1.get_text() for t in ax.yaxis.get_major_ticks()]
+        # add clickable links
+        anchors = {}
+        for i, (_, _, t, r, *_) in enumerate(self.get_copied_code_list(), start=1):
+            k = (self.basename(t), self.basename(r))
+            anchors[k] = anchors[k[::-1]] = i
+        report = Path(self.html_file).name
+        for i, x in enumerate(xl):
+            for j, y in enumerate(yl):
+                if x == y:
+                    continue
+                a = anchors.get((x, y), None)
+                if a is None:
+                    continue
+                ax.annotate("@", xy=(i+.5,j+.5), ha="center", va="center", alpha=0.0,
+                            url=f"{report}#collapse-{a}",
+                            bbox={"color": "w", "alpha": 0.0,
+                                  "url": f"{report}#collapse-{a}"})
+        # save PDF
+        cg.savefig(self.pdf_file, **kw["plt"])
+        plt.close()
+        if not self.silent:
+            print(f"PDF report saved to {str(self.pdf_file).replace('//', '/')}")

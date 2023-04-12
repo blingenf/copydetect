@@ -6,6 +6,8 @@ detector is run and used to generate an output HTML report.
 import json
 import argparse
 
+from pathlib import Path
+
 from .detector import CopyDetector
 from . import __version__
 from . import defaults
@@ -73,13 +75,27 @@ def main():
                         action='store_true', default=False,
                         help="truncate non-copied portions of highlighted "
                         "code")
-    parser.add_argument("-O", '--out-file', dest='out_file',
+    parser.add_argument("-O", '--out-file', dest='html_file',
                         default="./report.html",
-                        help="path to save output report to. A '.html' "
+                        help="path to save HTML report to. A '.html' "
                         "extension will be added to the path if not provided. "
                         "If a directory is provided instead of a file, the "
                         "report will be saved  to that directory as "
                         "report.html.")
+    parser.add_argument("-C", "--csv-file", dest="csv_file",
+                        default=False, action="store_true",
+                        help="save similarity matrix as a CSV file. "
+                        "Its name is that of the HTML report "
+                        "with '.csv' extension ")
+    parser.add_argument("-P", "--pdf-file", dest="pdf_file",
+                        default=False, action="store_true",
+                        help="generate a clickable PDF heatmap. "
+                        "Its name is that of the HTML report "
+                        "with '.pdf' extension ")
+    parser.add_argument("-H", "--heatmap-prune", dest="hm_prune",
+                        type=float, default=".5", metavar="P",
+                        help="simplify heatmap by removing rows/cols "
+                        "whose values are all <= P.")
     parser.add_argument('--version', action='version',
                         version="copydetect v" + __version__,
                         help="print version number and exit")
@@ -105,7 +121,9 @@ def main():
           "disable_filtering" : args.filter,
           "disable_autoopen" : args.autoopen,
           "truncate" : args.truncate,
-          "out_file" : args.out_file,
+          "html_file" : str(Path(args.html_file)),
+          "pdf_file" : str(Path(args.html_file).with_suffix(".pdf")),
+          "csv_file" : str(Path(args.html_file).with_suffix(".csv")),
         }
     else:
         parser.error("either a path to a configuration file (-c) or a "
@@ -115,6 +133,10 @@ def main():
     detector = CopyDetector.from_config(config)
     detector.run()
     detector.generate_html_report()
+    if args.pdf_file :
+        detector.generate_pdf_report(prune=args.hm_prune)
+    if args.csv_file :
+        detector.generate_csv_report()
 
 if __name__ == "__main__":
     main()
