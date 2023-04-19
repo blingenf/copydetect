@@ -75,7 +75,7 @@ def main():
                         action='store_true', default=False,
                         help="truncate non-copied portions of highlighted "
                         "code")
-    parser.add_argument("-O", '--out-file', dest='html_file',
+    parser.add_argument("-O", '--out-file', dest='out_file',
                         default="./report.html",
                         help="path to save HTML report to. A '.html' "
                         "extension will be added to the path if not provided. "
@@ -92,10 +92,6 @@ def main():
                         help="generate a clickable PDF heatmap. "
                         "Its name is that of the HTML report "
                         "with '.pdf' extension ")
-    parser.add_argument("-H", "--heatmap-prune", dest="hm_prune",
-                        type=float, default=".5", metavar="P",
-                        help="simplify heatmap by removing rows/cols "
-                        "whose values are all <= P.")
     parser.add_argument('--version', action='version',
                         version="copydetect v" + __version__,
                         help="print version number and exit")
@@ -121,7 +117,7 @@ def main():
           "disable_filtering" : args.filter,
           "disable_autoopen" : args.autoopen,
           "truncate" : args.truncate,
-          "html_file" : str(Path(args.html_file)),
+          "out_file" : str(Path(args.out_file)),
           "pdf_file" : str(Path(args.html_file).with_suffix(".pdf")),
           "csv_file" : str(Path(args.html_file).with_suffix(".csv")),
         }
@@ -134,7 +130,7 @@ def main():
     detector.run()
     detector.generate_html_report()
     if args.pdf_file :
-        detector.generate_pdf_report(prune=args.hm_prune)
+        detector.generate_pdf_report()
     if args.csv_file :
         detector.generate_csv_report()
 

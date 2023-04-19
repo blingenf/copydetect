@@ -21,7 +21,7 @@ setup(name="copydetect",
                              sources=["copydetect/winnow/winnow.c"],
                              optional=True)],
       install_requires=["numpy", "matplotlib", "jinja2", "pygments", "tqdm",
-                        "pandas", "seaborn", "scipy"],
+                        "pandas", "seaborn", "scipy", "fastcluster"],
       package_data={"copydetect" : ["data/*"]},
       python_requires=">=3.6",
       entry_points={"console_scripts" : [

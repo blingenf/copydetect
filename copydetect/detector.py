@@ -221,7 +221,7 @@ class CopyDetector:
     truncate : bool
         If true, highlighted code will be truncated to remove non-
         highlighted regions from the displayed output
-    html_file : str
+    out_file : str
         Path to HTML report file.
     pdf_file : str
         Path to PDF report file.
@@ -237,7 +237,7 @@ class CopyDetector:
                  display_t=defaults.DISPLAY_THRESHOLD,
                  same_name_only=False, ignore_leaf=False, autoopen=True,
                  disable_filtering=False, force_language=None,
-                 truncate=False, html_file="./report.html", pdf_file=None,
+                 truncate=False, out_file="./report.html", pdf_file=None,
                  csv_file=None, silent=False):
         if config is not None:
             # temporary workaround to ensure existing code continues
@@ -271,7 +271,7 @@ class CopyDetector:
         self.disable_filtering = disable_filtering
         self.force_language = force_language
         self.truncate = truncate
-        self.html_file = html_file
+        self.out_file = out_file
         self.pdf_file = pdf_file
         self.csv_file = csv_file
 
@@ -279,7 +279,7 @@ class CopyDetector:
 
         for ext in ("html", "pdf", "csv"):
             path = Path(getattr(self, f"{ext}_file")
-                        or Path(self.html_file).with_suffix(f".{ext}"))
+                        or Path(self.out_file).with_suffix(f".{ext}"))
             if path.is_dir():
                 setattr(self, f"{ext}_file", str(path / f"report.{ext}"))
             elif path.suffix != f".{ext}":
@@ -745,40 +745,27 @@ class CopyDetector:
         if not self.silent:
             print(f"CSV report saved to {str(self.csv_file).replace('//', '/')}")
 
-    def generate_pdf_report(self, prune=.5, **args):
+    def generate_pdf_report(self, **args):
         """Generate a clickable heatmap in a PDF file,
         clicks link to the corresponding match in HTML report.
 
         Parameters
         ----------
-        prune : float (default: .5)
-            simplify the heatmapby removing all rows/cols whose values
-            are all <= prune, normalised to 0 <= prune <= 1
         args :
             arguments to the functions that perform the drawing
             'sns_A=V' call 'seaborn.clustermap' with arg 'A=V'
-            'lnk_A=V' call 'scipy.cluster.hierarchy.linkage' with 'A=V'
             'plt_A=V' call 'matplotlib.pyplot.savefig' with 'A=V'
         """
         # late import to speedup program startup when PDF is not generated
         import seaborn as sns
-        from scipy.cluster.hierarchy import linkage
-        prune = min(1.0, max(0.0, prune))
         # extract meaningfull similarities
         sim = self._get_sim(-1, -1)
-        neg = sim <= prune
-        drop = list(set(sim.index[neg.all(axis="index")])
-                    & set(sim.columns[neg.all(axis="columns")]))
-        if drop:
-            sim.drop(index=drop, inplace=True)
-            sim.drop(columns=drop, inplace=True)
         sim[sim < 0] = 1
         if len(sim.index) <= 1 or len(sim.columns) <= 1:
             logging.error("not enough row/cols left after pruning")
             return
         # extract args
-        kw = {"lnk": {},
-              "sns": {"vmax": 1.0,
+        kw = {"sns": {"vmax": 1.0,
                       "vmin": 0.0,
                       "cmap": "RdYlBu_r"},
               "plt": {}}
@@ -790,8 +777,7 @@ class CopyDetector:
         kw["sns"].setdefault("xticklabels", 1)
         kw["sns"].setdefault("yticklabels", 1)
         # draw heatmap
-        link = linkage(sim, **kw["lnk"])
-        cg = sns.clustermap(sim, row_linkage=link, col_linkage=link, **kw["sns"])
+        cg = sns.clustermap(sim, **kw["sns"])
         if len(sim.columns) > 50:
             size = max(2, 350/len(sim.columns))
             plt.setp(cg.ax_heatmap.xaxis.get_majorticklabels(), fontsize=size)
