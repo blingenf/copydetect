@@ -222,7 +222,9 @@ class CopyDetector:
         If true, highlighted code will be truncated to remove non-
         highlighted regions from the displayed output
     out_file : str
-        Path to HTML report file.
+        Path to HTML report file (deprecated).
+    html_file : str
+        Path to HTML report file (replaces out_file).
     pdf_file : str
         Path to PDF report file.
     csv_file : str
@@ -237,7 +239,8 @@ class CopyDetector:
                  display_t=defaults.DISPLAY_THRESHOLD,
                  same_name_only=False, ignore_leaf=False, autoopen=True,
                  disable_filtering=False, force_language=None,
-                 truncate=False, out_file="./report.html", pdf_file=None,
+                 truncate=False, out_file="./report.html", 
+                 html_file="./report.html", pdf_file=None,
                  csv_file=None, silent=False):
         if config is not None:
             # temporary workaround to ensure existing code continues
@@ -272,10 +275,19 @@ class CopyDetector:
         self.force_language = force_language
         self.truncate = truncate
         self.out_file = out_file
+        self.html_file = html_file
         self.pdf_file = pdf_file
         self.csv_file = csv_file
 
         self._check_arguments()
+
+        if out_file is not None:
+            warnings.warn(
+                "The out_file parameter is deprecated and will be removed "
+                "in a future version. Use the html_file parameter to "
+                "specify an HTML output file.",
+                DeprecationWarning, stacklevel=2
+            )
 
         for ext in ("html", "pdf", "csv"):
             path = Path(getattr(self, f"{ext}_file")
