@@ -257,6 +257,14 @@ class CopyDetector:
             self.__init__(**{**args, **self._read_config(config)})
             return
 
+        if out_file is not None:
+            warnings.warn(
+                "The out_file parameter is deprecated and will be removed "
+                "in a future version. Use the html_file parameter to "
+                "specify an HTML output file.",
+                DeprecationWarning, stacklevel=2
+            )
+
         self.silent = silent
         self.test_dirs = test_dirs
         if len(ref_dirs) == 0:
@@ -280,14 +288,6 @@ class CopyDetector:
         self.csv_file = csv_file
 
         self._check_arguments()
-
-        if out_file is not None:
-            warnings.warn(
-                "The out_file parameter is deprecated and will be removed "
-                "in a future version. Use the html_file parameter to "
-                "specify an HTML output file.",
-                DeprecationWarning, stacklevel=2
-            )
 
         for ext in ("html", "pdf", "csv"):
             path = Path(getattr(self, f"{ext}_file")
