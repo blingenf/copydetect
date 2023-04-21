@@ -738,7 +738,8 @@ class CopyDetector:
         """
         rows = [self.basename(f) for f in self.test_files]
         cols = [self.basename(f) for f in self.ref_files]
-        sim = pd.DataFrame(data=self.similarity_matrix[:,:,0], index=rows, columns=cols)
+        sim = pd.DataFrame(data=np.copy(self.similarity_matrix[:,:,0]),
+                           index=rows, columns=cols)
         sim[sim < 0] = neg
         sim.fillna(nan, inplace=True)
         return sim
