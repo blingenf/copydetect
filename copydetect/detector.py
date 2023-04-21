@@ -291,7 +291,7 @@ class CopyDetector:
             path = Path(getattr(self, f"{ext}_file")
                         or Path(self.out_file).with_suffix(f".{ext}"))
             if path.is_dir():
-                path = path / f"report.{ext}")
+                path = path / f"report.{ext}"
             elif path.suffix != f".{ext}":
                 path = path.with_suffix(f".{ext}")
             setattr(self, f"{ext}_file", str(path))
