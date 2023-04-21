@@ -287,15 +287,16 @@ class CopyDetector:
         self.pdf_file = pdf_file
         self.csv_file = csv_file
 
-        self._check_arguments()
-
         for ext in ("html", "pdf", "csv"):
             path = Path(getattr(self, f"{ext}_file")
                         or Path(self.out_file).with_suffix(f".{ext}"))
             if path.is_dir():
-                setattr(self, f"{ext}_file", str(path / f"report.{ext}"))
+                path = path / f"report.{ext}")
             elif path.suffix != f".{ext}":
-                setattr(self, f"{ext}_file", str(path.with_suffix(f".{ext}")))
+                path = path.with_suffix(f".{ext}")
+            setattr(self, f"{ext}_file", str(path))
+
+        self._check_arguments()
 
         self.window_size = self.guarantee_t - self.noise_t + 1
 
