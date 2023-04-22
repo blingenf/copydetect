@@ -409,6 +409,7 @@ class CopyDetector:
         """
         file_list = []
         for dir in dirs:
+            print_warning = True
             for ext in exts:
                 if ext == "*":
                     matched_contents = Path(dir).rglob("*")
@@ -416,9 +417,11 @@ class CopyDetector:
                     matched_contents = Path(dir).rglob("*."+ext.lstrip("."))
                 files = [str(f) for f in matched_contents if f.is_file()]
 
-                if len(files) == 0:
-                    logging.warning("No files found in " + dir)
+                if len(files) > 0:
+                    print_warning = False
                 file_list.extend(files)
+            if print_warning:
+                logging.warning("No files found in " + dir)
 
         # convert to a set to remove duplicates, then back to a list
         return list(set(file_list))
