@@ -533,8 +533,7 @@ class CopyDetector:
                         self.file_data[test_f], self.file_data[ref_f]
                     )
                     comparisons[(test_f, ref_f)] = (i, j)
-                    if slices1.shape[0] != 0:
-                        self.slice_matrix[(i, j)] = [slices1, slices2]
+                    self.slice_matrix[(i, j)] = [slices1, slices2]
 
                 self.similarity_matrix[i, j] = np.array([sim1, sim2])
                 self.token_overlap_matrix[i, j] = overlap
