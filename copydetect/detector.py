@@ -582,6 +582,9 @@ class CopyDetector:
         code_list = []
         file_pairs = set()
         for idx in range(len(x)):
+            if ((x[idx], y[idx]) not in self.slice_matrix
+                    and (y[idx], x[idx]) not in self.slice_matrix):
+                continue
             test_f = self.test_files[x[idx]]
             ref_f = self.ref_files[y[idx]]
             if (ref_f, test_f) in file_pairs:
