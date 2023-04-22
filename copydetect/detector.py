@@ -534,7 +534,7 @@ class CopyDetector:
                     )
                     comparisons[(test_f, ref_f)] = (i, j)
                     if slices1.shape[0] != 0:
-                        self.slice_matrix[(i, j)] = [slices1, slices2]
+                        self.slice_matrix[(test_f, ref_f)] = [slices1, slices2]
 
                 self.similarity_matrix[i, j] = np.array([sim1, sim2])
                 self.token_overlap_matrix[i, j] = overlap
@@ -591,12 +591,12 @@ class CopyDetector:
 
             test_sim = self.similarity_matrix[x[idx], y[idx], 0]
             ref_sim = self.similarity_matrix[x[idx], y[idx], 1]
-            if (x[idx], y[idx]) in self.slice_matrix:
-                slices_test = self.slice_matrix[(x[idx], y[idx])][0]
-                slices_ref = self.slice_matrix[(x[idx], y[idx])][1]
+            if (test_f, ref_f) in self.slice_matrix:
+                slices_test = self.slice_matrix[(test_f, ref_f)][0]
+                slices_ref = self.slice_matrix[(test_f, ref_f)][1]
             else:
-                slices_test = self.slice_matrix[(y[idx], x[idx])][1]
-                slices_ref = self.slice_matrix[(y[idx], x[idx])][0]
+                slices_test = self.slice_matrix[(ref_f, test_f)][1]
+                slices_ref = self.slice_matrix[(ref_f, test_f)][0]
 
             if self.truncate:
                 truncate = 10
