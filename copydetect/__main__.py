@@ -117,7 +117,7 @@ def main():
           "disable_filtering" : args.filter,
           "disable_autoopen" : args.autoopen,
           "truncate" : args.truncate,
-          "out_file" : str(Path(args.out_file)),
+          "html_file" : str(Path(args.out_file)),
           "pdf_file" : str(Path(args.out_file).with_suffix(".pdf")),
           "csv_file" : str(Path(args.out_file).with_suffix(".csv")),
         }

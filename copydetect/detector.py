@@ -239,7 +239,7 @@ class CopyDetector:
                  display_t=defaults.DISPLAY_THRESHOLD,
                  same_name_only=False, ignore_leaf=False, autoopen=True,
                  disable_filtering=False, force_language=None,
-                 truncate=False, out_file="./report.html", 
+                 truncate=False, out_file=None,
                  html_file="./report.html", pdf_file=None,
                  csv_file=None, silent=False):
         if config is not None:
@@ -264,6 +264,7 @@ class CopyDetector:
                 "specify an HTML output file.",
                 DeprecationWarning, stacklevel=2
             )
+            html_file = out_file
 
         self.silent = silent
         self.test_dirs = test_dirs
@@ -282,14 +283,13 @@ class CopyDetector:
         self.disable_filtering = disable_filtering
         self.force_language = force_language
         self.truncate = truncate
-        self.out_file = out_file
         self.html_file = html_file
         self.pdf_file = pdf_file
         self.csv_file = csv_file
 
         for ext in ("html", "pdf", "csv"):
             path = Path(getattr(self, f"{ext}_file")
-                        or Path(self.out_file).with_suffix(f".{ext}"))
+                        or Path(self.html_file).with_suffix(f".{ext}"))
             if path.is_dir():
                 path = path / f"report.{ext}"
             elif path.suffix != f".{ext}":
