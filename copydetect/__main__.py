@@ -97,10 +97,12 @@ def main():
                         help="simplify PDF heatmaps by discarding rows/cols "
                         "with only values less than MIN.")
     parser.add_argument("-G", "--group", dest="hm_groups",
-                        default=[], nargs="+", action="append",
+                        default=[], nargs="*", action="append",
                         help="split PDF heatmaps into groups, use multiple"
                         " -G NAME FILE... to specify a group called NAME"
-                        " that contains the given FILEs")
+                        " that contains the given FILEs, or use -G"
+                        " alone to generate groupe names from file paths"
+                        " ('path/to/file' will be in group 'path/to')")
     parser.add_argument("-S", "--heatmap-split", dest="hm_split",
                         type=int, default=None, metavar="SIZE",
                         help="split generated heatmaps into chunks of"
@@ -142,11 +144,19 @@ def main():
     detector = CopyDetector.from_config(config)
     detector.run()
     detector.generate_html_report()
-    if args.pdf_file :
+    if args.pdf_file:
+        if not args.hm_groups:
+            groups=None
+        elif args.hm_groups == [[]]:
+            groups = "auto"
+        elif all(len(g) > 1 for g in args.hm_groups):
+            groups = {g[0]: g[1:] for g in args.hm_groups}
+        else:
+            parser.error("invalid use of -G/--group")
         detector.generate_pdf_report(minsim=args.hm_minsim,
                                      split=args.hm_split,
-                                     groups={g[0] : g[1:] for g in args.hm_groups})
-    if args.csv_file :
+                                     groups=groups)
+    if args.csv_file:
         detector.generate_csv_report()
 
 if __name__ == "__main__":

@@ -788,13 +788,15 @@ class CopyDetector:
             most this width/height. Splitting occurs on most distant clusters
             first, descending the dendrograms. Then, smallest chunks are gathered
             together to minimize the number of split heatmaps
-        groups: None or dict or (str)->str
+        groups: {None, "auto", dict, (str)->str}
             if groups is a dict, it must map group names to lists or sets of
             filenames, if groups is a function, it must map file names
             to group names and it is then used to build the dict as explained.
             File names are passed in their shortened version (from basename),
             if groups returns None, full version is tried, and if groups still
             return None, file is placed in its own group named as the short name.
+            If groups is "auto", then groups names are generated from the directory
+            names in which the analysed files have been collected.
             When groups is not None, the generated heatmap is split by groups:
             for each group name, a heatmap whose rows is limited the group members
             is generated. If split is also specified, these heatmaps are further
@@ -834,19 +836,28 @@ class CopyDetector:
         # draw full heatmap
         self._draw_heatmap(Path(self.pdf_file), "global", sim, kw, anchors, split, minsim)
         # draw by-group heatmaps
-        if not groups :
+        if not groups:
             return
         elif callable(groups):
-            grp = collections.defaultdict(set)
-            for f in set(self.test_files) | set(self.ref_files) :
+            _groups = collections.defaultdict(set)
+            for f in set(self.test_files) | set(self.ref_files):
                 b = self.basename(f)
-                grp[groups(b) or groups(f) or b].add(b)
-            groups = dict(grp)
-        else :
-            groups = {k : set(self.basename(f) for f in v)
-                      for k, v in groups.items()}
+                _groups[groups(b) or groups(f) or b].add(b)
+            _groups = dict(_groups)
+        elif groups == "auto":
+            _groups = collections.defaultdict(set)
+            for f in set(self.test_files) | set(self.ref_files):
+                b = self.basename(f)
+                g = str(Path(b).parent)
+                if g == "." :
+                    g = b
+                _groups[g].add(b)
+            _groups = dict(_groups)
+        else:
+            _groups = {k: set(self.basename(f) for f in v)
+                       for k, v in groups.items()}
         pdf = Path(self.pdf_file)
-        for grp, members in sorted(groups.items()):
+        for grp, members in sorted(_groups.items()):
             sub = sim[sim.index.isin(members)]
             if len(sub.index) <= 1:
                 continue
@@ -856,7 +867,7 @@ class CopyDetector:
             self._draw_heatmap(pdf.with_name(pdf.stem + f"-{grp}" + pdf.suffix),
                                "group", sub, kw, anchors, split, minsim)
 
-    def _draw_heatmap (self, path, kind, sim, kw, anchors, split=None, minsim=None) :
+    def _draw_heatmap(self, path, kind, sim, kw, anchors, split=None, minsim=None):
         """Draw a clickable heatmap for matrix sim and save it to path
 
         Parameters
@@ -950,8 +961,8 @@ class CopyDetector:
         """
         xchunks = self._binpack(self._split_tree(xt, split, sim.columns), split)
         ychunks = self._binpack(self._split_tree(yt, split, sim.index), split)
-        for x in xchunks :
-            for y in ychunks :
+        for x in xchunks:
+            for y in ychunks:
                 xy = sim.loc[y,x]
                 small = (xy < minsim)
                 sub = xy.drop(index=xy.index[small.all(axis="columns")],
