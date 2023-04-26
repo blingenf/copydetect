@@ -86,12 +86,25 @@ def main():
                         default=False, action="store_true",
                         help="save similarity matrix as a CSV file. "
                         "Its name is that of the HTML report "
-                        "with '.csv' extension ")
+                        "with '.csv' extension.")
     parser.add_argument("-P", "--pdf-file", dest="pdf_file",
                         default=False, action="store_true",
                         help="generate a clickable PDF heatmap. "
                         "Its name is that of the HTML report "
-                        "with '.pdf' extension ")
+                        "with '.pdf' extension.")
+    parser.add_argument("-M", "--heatmap-min", dest="hm_minsim",
+                        type=float, default=None, metavar="MIN",
+                        help="simplify PDF heatmaps by discarding rows/cols "
+                        "with only values less than MIN.")
+    parser.add_argument("-G", "--group", dest="hm_groups",
+                        default=[], nargs="+", action="append",
+                        help="split PDF heatmaps into groups, use multiple"
+                        " -G NAME FILE... to specify a group called NAME"
+                        " that contains the given FILEs")
+    parser.add_argument("-S", "--heatmap-split", dest="hm_split",
+                        type=int, default=None, metavar="SIZE",
+                        help="split generated heatmaps into chunks of"
+                        " at most SIZE rows/cols")
     parser.add_argument('--version', action='version',
                         version="copydetect v" + __version__,
                         help="print version number and exit")
@@ -130,7 +143,9 @@ def main():
     detector.run()
     detector.generate_html_report()
     if args.pdf_file :
-        detector.generate_pdf_report()
+        detector.generate_pdf_report(minsim=args.hm_minsim,
+                                     split=args.hm_split,
+                                     groups={g[0] : g[1:] for g in args.hm_groups})
     if args.csv_file :
         detector.generate_csv_report()
 
