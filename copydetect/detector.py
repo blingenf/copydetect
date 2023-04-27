@@ -806,16 +806,12 @@ class CopyDetector:
             'sns_A=V' call 'seaborn.clustermap' with arg 'A=V'
             'plt_A=V' call 'matplotlib.pyplot.savefig' with 'A=V'
         """
-        # extract meaningful similarities
-        sim = self._get_sim(-1, 0)
-        small = (sim < minsim)
-        sim.drop(index=sim.index[small.all(axis="columns")],
-                 columns=sim.columns[small.all(axis="index")],
-                 inplace=True)
-        sim[sim < 0] = 1
-        if len(sim.index) <= 1 or len(sim.columns) <= 1:
-            logging.error("not enough row/cols left after pruning")
-            return
+        # late import to speedup program startup when PDF is not generated
+        import seaborn as sns
+        from scipy.cluster.hierarchy import to_tree
+        if not self.silent:
+            start_time = time.time()
+            print("  0.00: Generating heatmaps")
         # extract args
         kw = {"sns": {"vmax": 1.0,
                       "vmin": 0.0,
@@ -828,16 +824,24 @@ class CopyDetector:
                 raise TypeError(f"unexpected argument {key!r}")
         kw["sns"].setdefault("xticklabels", 1)
         kw["sns"].setdefault("yticklabels", 1)
+        # extract meaningful similarities
+        sim = self._get_sim(-1, 0)
+        small = (sim < minsim)
+        sim.drop(index=sim.index[small.all(axis="columns")],
+                 columns=sim.columns[small.all(axis="index")],
+                 inplace=True)
+        sim[sim < 0] = 1
+        if len(sim.index) <= 1 or len(sim.columns) <= 1:
+            logging.error("not enough row/cols left after cleanup")
+            return
         # compute clickable links
         anchors = {}
         for i, (_, _, t, r, *_) in enumerate(self.get_copied_code_list(), start=1):
             k = (self.basename(t), self.basename(r))
             anchors[k] = anchors[k[::-1]] = i
-        # draw full heatmap
-        self._draw_heatmap(Path(self.pdf_file), "global", sim, kw, anchors, split, minsim)
-        # draw by-group heatmaps
+        # compute groups
         if not groups:
-            return
+            _groups = {}
         elif callable(groups):
             _groups = collections.defaultdict(set)
             for f in set(self.test_files) | set(self.ref_files):
@@ -856,58 +860,101 @@ class CopyDetector:
         else:
             _groups = {k: set(self.basename(f) for f in v)
                        for k, v in groups.items()}
+        if _groups:
+            pal = sns.color_palette(n_colors=len(_groups))
+            g2c = dict(zip(_groups, pal))
+            f2c = {f: g2c[k] for k, v in _groups.items() for f in v}
+            rc = sim.index.map(f2c.get)
+            cc = sim.columns.map(f2c.get)
+        else :
+            rc = cc = None
+        # generate heatmaps
         pdf = Path(self.pdf_file)
-        for grp, members in sorted(_groups.items()):
-            sub = sim[sim.index.isin(members)]
-            if len(sub.index) <= 1:
-                continue
-            sub = sub.drop(columns=sub.columns[(sub < minsim).all(axis="index")])
-            if len(sub.columns) <= 1:
-                continue
-            self._draw_heatmap(pdf.with_name(pdf.stem + f"-{grp}" + pdf.suffix),
-                               "group", sub, kw, anchors, split, minsim)
+        todo = []
+        with tqdm(total=0, bar_format= '   {l_bar}{bar}{r_bar}',
+                  disable=self.silent) as log:
+            # global heatmap
+            def _add(p, h, **cm):
+                todo.append({"path": p, "heatmap": h, "cm": cm})
+                log.total= len(todo)
+                log.refresh()
+            _add(pdf, sns.clustermap(sim, row_colors=rc, col_colors=cc, **kw["sns"]))
+            # group heatmaps
+            for grp, members in sorted(_groups.items()):
+                sub = sim[sim.index.isin(members)]
+                if len(sub.index) <= 1:
+                    continue
+                sub = sub.drop(columns=sub.columns[(sub < minsim).all(axis="index")])
+                if len(sub.columns) <= 1:
+                    continue
+                if _groups:
+                    rc = sub.index.map(f2c.get)
+                    cc = sub.columns.map(f2c.get)
+                if split and any(d > split for d in sub.shape):
+                    _add(pdf.with_name(pdf.stem + f"-{grp}" + pdf.suffix),
+                         sns.clustermap(sub, row_colors=rc, col_colors=cc, **kw["sns"]))
+                else :
+                    _add(pdf.with_name(pdf.stem + f"-{grp}" + pdf.suffix), None,
+                         data=sub, row_colors=rc, col_colors=cc, **kw["sns"])
+            # split heatmaps
+            if split:
+                for args in todo[:]:
+                    path, hm = args["path"], args["heatmap"]
+                    if hm is None:
+                        continue
+                    xt = to_tree(hm.dendrogram_col.linkage)
+                    yt = to_tree(hm.dendrogram_row.linkage)
+                    _split = self._split_matrix(hm.data, split, minsim, xt, yt)
+                    for num, sub in enumerate(_split, start=1):
+                        report = (path.parent / (path.stem + f"-{num}"))
+                        report = report.with_suffix(path.suffix)
+                        if _groups:
+                            rc = sub.index.map(f2c.get)
+                            cc = sub.columns.map(f2c.get)
+                        _add(report, None,
+                             data=sub, row_colors=rc, col_colors=cc, **kw["sns"])
+            # draw heatmaps
+            for args in todo:
+                log.update()
+                cm = args.pop("cm")
+                if cm :
+                    args["heatmap"] = sns.clustermap(**cm)
+                self._draw_heatmap(**args, anchors=anchors, plt_kw=kw["plt"])
+        if not self.silent:
+            print(f"{time.time()-start_time:6.2f}: Heatmaps generation completed")
 
-    def _draw_heatmap(self, path, kind, sim, kw, anchors, split=None, minsim=None):
-        """Draw a clickable heatmap for matrix sim and save it to path
+    def _draw_heatmap(self, path, heatmap, anchors, plt_kw):
+        """Draw a clickable heatmap and save it to path
 
         Parameters
         ----------
-        path : pathlib.Path
+        path : pathlib.Path or str
             where to save the generated heatmap. Note that it should have a `.pdf`
-            suffix otherwise it will be saved but the clickable links will be 
+            suffix otherwise it will be saved but the clickable links will be
             discarded
-        kind : {"global", "group", ...}
-            how to describe the heatmap while printing progression to the terminal
-        sim : pandas.DataFrame
-            the similarity matrix to plot
+        heatmap:
+            the heatmap to be drawn as returned by seaborn.clustermap()
         anchors : dict
            map pairs of col/row values to collapse div numbers in `self.html_file`
            for the generation of clickable links
-        split : None or int
-            as for generate_pdf_report
-        minsim : None or float
-            as for generate_pdf_report
+        plt_kw : dict
+            additional arguments passed to matplotlib.pyplot.savefig()
         """
-        # late import to speedup program startup when PDF is not generated
-        import seaborn as sns
-        from scipy.cluster.hierarchy import to_tree
-        if not self.silent:
-            print(f"generating {kind} PDF report to '{path}'...", end="", flush=True)
-        # draw heatmap
-        cg = sns.clustermap(sim, **kw["sns"])
-        xfont = max(2, 350/len(sim.columns))
-        if len(sim.columns) > 40:
-            plt.setp(cg.ax_heatmap.xaxis.get_majorticklabels(), fontsize=xfont)
-        yfont = max(2, 350/len(sim.index))
-        if len(sim.index) > 40:
-            plt.setp(cg.ax_heatmap.yaxis.get_majorticklabels(), fontsize=xfont)
-        plt.setp(cg.ax_heatmap.yaxis.get_majorticklabels(), rotation=0)
-        plt.setp(cg.ax_heatmap.xaxis.get_majorticklabels(), rotation=90)
-        ax = cg.ax_heatmap
+        # configure axes
+        height, width = heatmap.data.shape
+        xfont = max(2, 350/width)
+        if width > 40:
+            plt.setp(heatmap.ax_heatmap.xaxis.get_majorticklabels(), fontsize=xfont)
+        yfont = max(2, 350/height)
+        if height > 40:
+            plt.setp(heatmap.ax_heatmap.yaxis.get_majorticklabels(), fontsize=xfont)
+        plt.setp(heatmap.ax_heatmap.yaxis.get_majorticklabels(), rotation=0)
+        plt.setp(heatmap.ax_heatmap.xaxis.get_majorticklabels(), rotation=90)
+        ax = heatmap.ax_heatmap
         xl = [t.label1.get_text() for t in ax.xaxis.get_major_ticks()]
         yl = [t.label1.get_text() for t in ax.yaxis.get_major_ticks()]
         # add clickable links
-        text = "|" * max(1, round(2.8 * len(sim.index) / len(sim.columns)))
+        text = "|" * max(1, round(2.8 * height / width))
         report = Path(self.html_file).name
         for i, x in enumerate(xl):
             for j, y in enumerate(yl):
@@ -922,16 +969,8 @@ class CopyDetector:
                             bbox={"visible": False,
                                   "url": f"{report}#collapse-{a}"})
         # save PDF
-        cg.savefig(path, **kw["plt"])
+        heatmap.savefig(path, **plt_kw)
         plt.close()
-        if not self.silent:
-            print(" done")
-        if split:
-            xt, yt = to_tree(cg.dendrogram_col.linkage), to_tree(cg.dendrogram_row.linkage)
-            for num, cluster in enumerate(self._split_matrix(sim, split, minsim, xt, yt),
-                                          start=1):
-                report = (path.parent / (path.stem + f"-{num}")).with_suffix(path.suffix)
-                self._draw_heatmap(report, f"split {kind}", cluster, kw, anchors)
 
     def _split_matrix(self, sim, split, minsim, xt, yt):
         """Split a similarity matrix into chunks of limited width/height
@@ -959,6 +998,7 @@ class CopyDetector:
         -------
         An iterator yielding the sub-matrices extracted from sim
         """
+        height, width = sim.shape
         xchunks = self._binpack(self._split_tree(xt, split, sim.columns), split)
         ychunks = self._binpack(self._split_tree(yt, split, sim.index), split)
         for x in xchunks:
@@ -967,8 +1007,8 @@ class CopyDetector:
                 small = (xy < minsim)
                 sub = xy.drop(index=xy.index[small.all(axis="columns")],
                               columns=xy.columns[small.all(axis="index")])
-                if (1 < len(sub.columns) < len(sim.columns) 
-                    and 1 < len(sub.index) < len(sim.index)):
+                h, w = sub.shape
+                if w > 1 and h > 1 and (w < width or h < height):
                     yield sub
 
     def _split_tree(self, tree, split, names):
