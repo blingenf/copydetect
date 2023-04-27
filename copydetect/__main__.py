@@ -93,7 +93,7 @@ def main():
                         "Its name is that of the HTML report "
                         "with '.pdf' extension.")
     parser.add_argument("-M", "--heatmap-min", dest="hm_minsim",
-                        type=float, default=None, metavar="MIN",
+                        type=float, default=0.0, metavar="MIN",
                         help="simplify PDF heatmaps by discarding rows/cols "
                         "with only values less than MIN.")
     parser.add_argument("-G", "--group", dest="hm_groups",
