@@ -140,10 +140,6 @@ def main():
         parser.error("either a path to a configuration file (-c) or a "
                      "list of test directories (-t) must be provided.")
 
-    # get overlapping code
-    detector = CopyDetector.from_config(config)
-    detector.run()
-    detector.generate_html_report()
     if args.pdf_file:
         if not args.hm_groups:
             groups=None
@@ -153,6 +149,12 @@ def main():
             groups = {g[0]: g[1:] for g in args.hm_groups}
         else:
             parser.error("invalid use of -G/--group")
+
+    # get overlapping code
+    detector = CopyDetector.from_config(config)
+    detector.run()
+    detector.generate_html_report()
+    if args.pdf_file:
         detector.generate_pdf_report(minsim=args.hm_minsim,
                                      split=args.hm_split,
                                      groups=groups)
