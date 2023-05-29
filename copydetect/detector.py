@@ -850,11 +850,14 @@ class CopyDetector:
             _groups = dict(_groups)
         elif groups == "auto":
             _groups = collections.defaultdict(set)
-            for f in set(self.test_files) | set(self.ref_files):
+            all_files = self.test_files + self.ref_files
+            for f in all_files:
                 b = self.basename(f)
-                g = str(Path(b).parent)
-                if g == "." :
-                    g = b
+                for g in reversed([str(p) for p in Path(b).parents]):
+                    if g != ".":
+                        break
+                else:
+                    g = ""
                 _groups[g].add(b)
             _groups = dict(_groups)
         else:
@@ -881,6 +884,8 @@ class CopyDetector:
             _add(pdf, sns.clustermap(sim, row_colors=rc, col_colors=cc, **kw["sns"]))
             # group heatmaps
             for grp, members in sorted(_groups.items()):
+                if len(members) <= 1:
+                    continue
                 sub = sim[sim.index.isin(members)]
                 if len(sub.index) <= 1:
                     continue
