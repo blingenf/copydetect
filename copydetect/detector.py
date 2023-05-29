@@ -12,6 +12,7 @@ import io
 import base64
 import warnings
 import os.path
+import collections
 
 from tqdm import tqdm
 import numpy as np
@@ -720,6 +721,10 @@ class CopyDetector:
         Parameters
         ----------
         p : a path to be shortened
+
+        Returns
+        -------
+        A non-ambiguous shortened name for p
         """
         if self._basename is None:
             prefix = os.path.commonpath(self.test_files + self.ref_files)
@@ -738,6 +743,11 @@ class CopyDetector:
             value to use instead of -1 in the returned matrix
         nan : float
             value to use instead of NaN in the returned matrix
+
+        Returns
+        -------
+        similarity matrix self.similarity_matrix[:,:,0] as a `pd.DataFrame`
+        where negative values and nans have been replaced as expected
         """
         rows = [self.basename(f) for f in self.test_files]
         cols = [self.basename(f) for f in self.ref_files]
@@ -747,7 +757,7 @@ class CopyDetector:
         sim.fillna(nan, inplace=True)
         return sim
 
-    def generate_csv_report(self, neg=1.0, nan=1.0):
+    def generate_csv_report(self, neg=1.0, nan=0.0):
         """Save similarity matrix to a CSV file.
 
         Parameters
@@ -762,12 +772,35 @@ class CopyDetector:
         if not self.silent:
             print(f"CSV report saved to {str(self.csv_file).replace('//', '/')}")
 
-    def generate_pdf_report(self, **args):
+    def generate_pdf_report(self, minsim=.33, split=None, groups=None, **args):
         """Generate a clickable heatmap in a PDF file,
         clicks link to the corresponding match in HTML report.
 
         Parameters
         ----------
+        minsim : float
+            minimal similarity that is considered significant for
+            heatmap simplifications. Basically, rows/cols that only have
+            values < minsim are removed. Further simplifications occur
+            when using split or groups parameters
+        split : None or int
+            if not None, the generated heatmaps is split into parts of at
+            most this width/height. Splitting occurs on most distant clusters
+            first, descending the dendrograms. Then, smallest chunks are gathered
+            together to minimize the number of split heatmaps
+        groups: {None, "auto", dict, (str)->str}
+            if groups is a dict, it must map group names to lists or sets of
+            filenames, if groups is a function, it must map file names
+            to group names and it is then used to build the dict as explained.
+            File names are passed in their shortened version (from basename),
+            if groups returns None, full version is tried, and if groups still
+            return None, file is placed in its own group named as the short name.
+            If groups is "auto", then groups names are generated from the directory
+            names in which the analysed files have been collected.
+            When groups is not None, the generated heatmap is split by groups:
+            for each group name, a heatmap whose rows is limited the group members
+            is generated. If split is also specified, these heatmaps are further
+            into smaller parts.
         args :
             arguments to the functions that perform the drawing
             'sns_A=V' call 'seaborn.clustermap' with arg 'A=V'
@@ -775,12 +808,10 @@ class CopyDetector:
         """
         # late import to speedup program startup when PDF is not generated
         import seaborn as sns
-        # extract meaningfull similarities
-        sim = self._get_sim(-1, -1)
-        sim[sim < 0] = 1
-        if len(sim.index) <= 1 or len(sim.columns) <= 1:
-            logging.error("not enough row/cols left after pruning")
-            return
+        from scipy.cluster.hierarchy import to_tree
+        if not self.silent:
+            start_time = time.time()
+            print("  0.00: Generating heatmaps")
         # extract args
         kw = {"sns": {"vmax": 1.0,
                       "vmin": 0.0,
@@ -793,24 +824,142 @@ class CopyDetector:
                 raise TypeError(f"unexpected argument {key!r}")
         kw["sns"].setdefault("xticklabels", 1)
         kw["sns"].setdefault("yticklabels", 1)
-        # draw heatmap
-        cg = sns.clustermap(sim, **kw["sns"])
-        if len(sim.columns) > 50:
-            size = max(2, 350/len(sim.columns))
-            plt.setp(cg.ax_heatmap.xaxis.get_majorticklabels(), fontsize=size)
-        if len(sim.index) > 50:
-            size = max(2, 350/len(sim.index))
-            plt.setp(cg.ax_heatmap.yaxis.get_majorticklabels(), fontsize=size)
-        plt.setp(cg.ax_heatmap.yaxis.get_majorticklabels(), rotation=0)
-        plt.setp(cg.ax_heatmap.xaxis.get_majorticklabels(), rotation=90)
-        ax = cg.ax_heatmap
-        xl = [t.label1.get_text() for t in ax.xaxis.get_major_ticks()]
-        yl = [t.label1.get_text() for t in ax.yaxis.get_major_ticks()]
-        # add clickable links
+        # extract meaningful similarities
+        sim = self._get_sim(-1, 0)
+        small = (sim < minsim)
+        sim.drop(index=sim.index[small.all(axis="columns")],
+                 columns=sim.columns[small.all(axis="index")],
+                 inplace=True)
+        sim[sim < 0] = 1
+        if len(sim.index) <= 1 or len(sim.columns) <= 1:
+            logging.error("not enough row/cols left after cleanup")
+            return
+        # compute clickable links
         anchors = {}
         for i, (_, _, t, r, *_) in enumerate(self.get_copied_code_list(), start=1):
             k = (self.basename(t), self.basename(r))
             anchors[k] = anchors[k[::-1]] = i
+        # compute groups
+        if not groups:
+            _groups = {}
+        elif callable(groups):
+            _groups = collections.defaultdict(set)
+            for f in set(self.test_files) | set(self.ref_files):
+                b = self.basename(f)
+                _groups[groups(b) or groups(f) or b].add(b)
+            _groups = dict(_groups)
+        elif groups == "auto":
+            _groups = collections.defaultdict(set)
+            all_files = self.test_files + self.ref_files
+            for f in all_files:
+                b = self.basename(f)
+                for g in reversed([str(p) for p in Path(b).parents]):
+                    if g != ".":
+                        break
+                else:
+                    g = ""
+                _groups[g].add(b)
+            _groups = dict(_groups)
+        else:
+            _groups = {k: set(self.basename(f) for f in v)
+                       for k, v in groups.items()}
+        if _groups:
+            pal = sns.color_palette(n_colors=len(_groups))
+            g2c = dict(zip(_groups, pal))
+            f2c = {f: g2c[k] for k, v in _groups.items() for f in v}
+            rc = sim.index.map(f2c.get)
+            cc = sim.columns.map(f2c.get)
+        else :
+            rc = cc = None
+        # generate heatmaps
+        pdf = Path(self.pdf_file)
+        todo = []
+        with tqdm(total=0, bar_format= '   {l_bar}{bar}{r_bar}',
+                  disable=self.silent) as log:
+            # global heatmap
+            def _add(p, h, **cm):
+                todo.append({"path": p, "heatmap": h, "cm": cm})
+                log.total= len(todo)
+                log.refresh()
+            _add(pdf, sns.clustermap(sim, row_colors=rc, col_colors=cc, **kw["sns"]))
+            # group heatmaps
+            for grp, members in sorted(_groups.items()):
+                if len(members) <= 1:
+                    continue
+                sub = sim[sim.index.isin(members)]
+                if len(sub.index) <= 1:
+                    continue
+                sub = sub.drop(columns=sub.columns[(sub < minsim).all(axis="index")])
+                if len(sub.columns) <= 1:
+                    continue
+                if _groups:
+                    rc = sub.index.map(f2c.get)
+                    cc = sub.columns.map(f2c.get)
+                if split and any(d > split for d in sub.shape):
+                    _add(pdf.with_name(pdf.stem + f"-{grp}" + pdf.suffix),
+                         sns.clustermap(sub, row_colors=rc, col_colors=cc, **kw["sns"]))
+                else :
+                    _add(pdf.with_name(pdf.stem + f"-{grp}" + pdf.suffix), None,
+                         data=sub, row_colors=rc, col_colors=cc, **kw["sns"])
+            # split heatmaps
+            if split:
+                for args in todo[:]:
+                    path, hm = args["path"], args["heatmap"]
+                    if hm is None:
+                        continue
+                    xt = to_tree(hm.dendrogram_col.linkage)
+                    yt = to_tree(hm.dendrogram_row.linkage)
+                    _split = self._split_matrix(hm.data, split, minsim, xt, yt)
+                    for num, sub in enumerate(_split, start=1):
+                        report = (path.parent / (path.stem + f"-{num}"))
+                        report = report.with_suffix(path.suffix)
+                        if _groups:
+                            rc = sub.index.map(f2c.get)
+                            cc = sub.columns.map(f2c.get)
+                        _add(report, None,
+                             data=sub, row_colors=rc, col_colors=cc, **kw["sns"])
+            # draw heatmaps
+            for args in todo:
+                log.update()
+                cm = args.pop("cm")
+                if cm :
+                    args["heatmap"] = sns.clustermap(**cm)
+                self._draw_heatmap(**args, anchors=anchors, plt_kw=kw["plt"])
+        if not self.silent:
+            print(f"{time.time()-start_time:6.2f}: Heatmaps generation completed")
+
+    def _draw_heatmap(self, path, heatmap, anchors, plt_kw):
+        """Draw a clickable heatmap and save it to path
+
+        Parameters
+        ----------
+        path : pathlib.Path or str
+            where to save the generated heatmap. Note that it should have a `.pdf`
+            suffix otherwise it will be saved but the clickable links will be
+            discarded
+        heatmap:
+            the heatmap to be drawn as returned by seaborn.clustermap()
+        anchors : dict
+           map pairs of col/row values to collapse div numbers in `self.html_file`
+           for the generation of clickable links
+        plt_kw : dict
+            additional arguments passed to matplotlib.pyplot.savefig()
+        """
+        # configure axes
+        height, width = heatmap.data.shape
+        xfont = max(2, 350/width)
+        if width > 40:
+            plt.setp(heatmap.ax_heatmap.xaxis.get_majorticklabels(), fontsize=xfont)
+        yfont = max(2, 350/height)
+        if height > 40:
+            plt.setp(heatmap.ax_heatmap.yaxis.get_majorticklabels(), fontsize=xfont)
+        plt.setp(heatmap.ax_heatmap.yaxis.get_majorticklabels(), rotation=0)
+        plt.setp(heatmap.ax_heatmap.xaxis.get_majorticklabels(), rotation=90)
+        ax = heatmap.ax_heatmap
+        xl = [t.label1.get_text() for t in ax.xaxis.get_major_ticks()]
+        yl = [t.label1.get_text() for t in ax.yaxis.get_major_ticks()]
+        # add clickable links
+        text = "|" * max(1, round(2.8 * height / width))
         report = Path(self.html_file).name
         for i, x in enumerate(xl):
             for j, y in enumerate(yl):
@@ -819,12 +968,113 @@ class CopyDetector:
                 a = anchors.get((x, y), None)
                 if a is None:
                     continue
-                ax.annotate("@", xy=(i+.5,j+.5), ha="center", va="center", alpha=0.0,
+                ax.annotate(text, xy=(i+.5,j+.5), ha="center", va="center", alpha=0.0,
+                            size=yfont,
                             url=f"{report}#collapse-{a}",
-                            bbox={"color": "w", "alpha": 0.0,
+                            bbox={"visible": False,
                                   "url": f"{report}#collapse-{a}"})
         # save PDF
-        cg.savefig(self.pdf_file, **kw["plt"])
+        heatmap.savefig(path, **plt_kw)
         plt.close()
-        if not self.silent:
-            print(f"PDF report saved to {str(self.pdf_file).replace('//', '/')}")
+
+    def _split_matrix(self, sim, split, minsim, xt, yt):
+        """Split a similarity matrix into chunks of limited width/height
+
+        Splitting is performed as follows:
+         - the dendograms from a complete heatmap are descended to extract clusters
+           smaller than split arg
+         - these smaller chunks are then gathered together to limit the number of
+           generated split heatmaps, while keeping the in the size limit
+         - sub-matrices are extracted and their cols/rows that only have values < minsim
+           are discarded
+
+        Parameters
+        ----------
+        sim : pandas.DataFrame
+            the similarity matrix to be split
+        split : int
+            the maximum width/height of generated chunks
+        minsim : float
+            as for generate_pdf_report
+        xt : tree generated from the cols dendrogram
+        yt : tree generated from the rows dendrogram
+
+        Returns
+        -------
+        An iterator yielding the sub-matrices extracted from sim
+        """
+        height, width = sim.shape
+        xchunks = self._binpack(self._split_tree(xt, split, sim.columns), split)
+        ychunks = self._binpack(self._split_tree(yt, split, sim.index), split)
+        for x in xchunks:
+            for y in ychunks:
+                xy = sim.loc[y,x]
+                small = (xy < minsim)
+                sub = xy.drop(index=xy.index[small.all(axis="columns")],
+                              columns=xy.columns[small.all(axis="index")])
+                h, w = sub.shape
+                if w > 1 and h > 1 and (w < width or h < height):
+                    yield sub
+
+    def _split_tree(self, tree, split, names):
+        """Split a dendogram into chunks of limited size
+
+        Parameters
+        ----------
+        tree : tree generated from the dendogram
+        split : maximum size of chunks
+        names : array of leaf names
+
+        Returns
+        -------
+        An iterator yielding lists of leaf names
+        """
+        todo = [tree]
+        while todo:
+            node = todo.pop()
+            count = node.get_count()
+            if 1 < count <= split:
+                yield self._get_leaves(node, names)
+            else:
+                for child in (node.left, node.right):
+                    if child and child.get_count() > 1:
+                        todo.append(child)
+
+    def _get_leaves(self, node, names):
+        """Return the names of a sub-tree leaves
+
+        Parameters
+        ----------
+        node : a sub-tree
+        names : as for _split_tree
+
+        Returns
+        -------
+        A list of leaf names extracted from arg names
+        """
+        def _leave(node):
+            if node.is_leaf():
+                return names[node.get_id()]
+        return [n for n in node.pre_order(_leave) if n is not None]
+
+    def _binpack(self, chunks, binsize):
+        """Gather chunks into bigger groups of at most binsize items
+
+        Implements first-fit-decreasing bin packing algorithm that 
+        usually gives a good approximation
+
+        Parameters
+        ----------
+        chunks : iterable of chunks
+            each chunk itself should be an iterable of str
+        binsize : target size for gathered chunks
+        """
+        bins = []
+        for c in sorted(chunks, key=len, reverse=True):
+            for b in bins:
+                if len(b) + len(c) <= binsize:
+                    b.extend(c)
+                    break
+            else:
+                bins.append(list(c))
+        return bins
