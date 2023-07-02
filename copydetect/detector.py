@@ -79,7 +79,7 @@ class CodeFingerprint:
         performing winnowing.
     """
     def __init__(self, file, k, win_size, boilerplate=[], filter=True,
-                 language=None, fp=None, encoding="utf-8"):
+                 language=None, fp=None, encoding: str = "utf-8"):
         if fp is not None:
             code = fp.read()
         elif encoding == "DETECT":
@@ -244,6 +244,10 @@ class CopyDetector:
         Path to output report file.
     silent : bool
         If true, all logging output will be supressed.
+    encoding : str, default="utf-8"
+        Text encoding to use for reading the file. If "DETECT", the
+        chardet library will be used (if installed) to automatically
+        detect file encoding
     """
     def __init__(self, config=None, test_dirs=[], ref_dirs=[],
                  boilerplate_dirs=[], extensions=["*"],
@@ -252,7 +256,8 @@ class CopyDetector:
                  display_t=defaults.DISPLAY_THRESHOLD,
                  same_name_only=False, ignore_leaf=False, autoopen=True,
                  disable_filtering=False, force_language=None,
-                 truncate=False, out_file="./report.html", silent=False):
+                 truncate=False, out_file="./report.html", silent=False,
+                 encoding: str = "utf-8"):
         if config is not None:
             # temporary workaround to ensure existing code continues
             # to work
@@ -286,6 +291,7 @@ class CopyDetector:
         self.force_language = force_language
         self.truncate = truncate
         self.out_file = out_file
+        self.encoding = encoding
 
         self._check_arguments()
 
@@ -479,7 +485,8 @@ class CopyDetector:
             try:
                 fingerprint=CodeFingerprint(file, self.noise_t, 1,
                                             filter=not self.disable_filtering,
-                                            language=self.force_language)
+                                            language=self.force_language,
+                                            encoding=self.encoding)
                 boilerplate_hashes.extend(fingerprint.hashes)
             except UnicodeDecodeError:
                 logging.warning(f"Skipping {file}: file not UTF-8 text")
@@ -500,7 +507,7 @@ class CopyDetector:
                     self.file_data[code_f] = CodeFingerprint(
                         code_f, self.noise_t, self.window_size,
                         boilerplate_hashes, not self.disable_filtering,
-                        self.force_language)
+                        self.force_language, encoding=self.encoding)
 
                 except UnicodeDecodeError:
                     logging.warning(f"Skipping {code_f}: file not UTF-8 text")

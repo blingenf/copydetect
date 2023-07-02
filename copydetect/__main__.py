@@ -83,6 +83,11 @@ def main():
     parser.add_argument('--version', action='version',
                         version="copydetect v" + __version__,
                         help="print version number and exit")
+    parser.add_argument("--encoding", default="utf-8",
+                        help="encoding to use for reading files. If files use "
+                        "varying encodings, --encoding DETECT can be used to "
+                        "detect the encoding of all files (requires the "
+                        "chardet package)")
     args = parser.parse_args()
 
     if args.conf:
@@ -106,6 +111,7 @@ def main():
           "disable_autoopen" : args.autoopen,
           "truncate" : args.truncate,
           "out_file" : args.out_file,
+          "encoding": args.encoding,
         }
     else:
         parser.error("either a path to a configuration file (-c) or a "
