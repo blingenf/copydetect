@@ -45,6 +45,10 @@ class CodeFingerprint:
         the "file" argument will not be used to load a file from disk
         but will still be used for language detection and displayed on
         the report.
+    encoding : str, default="utf-8"
+        Text encoding to use for reading the file. If "DETECT", the
+        chardet library will be used (if installed) to automatically
+        detect file encoding
 
     Attributes
     ----------
@@ -75,11 +79,28 @@ class CodeFingerprint:
         performing winnowing.
     """
     def __init__(self, file, k, win_size, boilerplate=[], filter=True,
-                 language=None, fp=None):
+                 language=None, fp=None, encoding="utf-8"):
         if fp is not None:
             code = fp.read()
+        elif encoding == "DETECT":
+            try:
+                import chardet
+                with open(file, "rb") as code_fp:
+                    code = code_fp.read()
+                detected_encoding = chardet.detect(code)["encoding"]
+                if detected_encoding is not None:
+                    code = code.decode(detected_encoding)
+                else:
+                    # if encoding can't be detected, just use the default
+                    # encoding (the file may be empty)
+                    code = code.decode()
+            except ModuleNotFoundError as e:
+                logging.error(
+                    "encoding detection requires chardet to be installed"
+                )
+                raise e
         else:
-            with open(file, encoding="utf-8") as code_fp:
+            with open(file, encoding=encoding) as code_fp:
                 code = code_fp.read()
         if filter:
             filtered_code, offsets = filter_code(code, file, language)
@@ -461,7 +482,7 @@ class CopyDetector:
                                             language=self.force_language)
                 boilerplate_hashes.extend(fingerprint.hashes)
             except UnicodeDecodeError:
-                logging.warning(f"Skipping {file}: file not ASCII text")
+                logging.warning(f"Skipping {file}: file not UTF-8 text")
                 continue
 
         return np.unique(np.array(boilerplate_hashes))
@@ -482,7 +503,7 @@ class CopyDetector:
                         self.force_language)
 
                 except UnicodeDecodeError:
-                    logging.warning(f"Skipping {code_f}: file not ASCII text")
+                    logging.warning(f"Skipping {code_f}: file not UTF-8 text")
                     continue
 
     def _comparison_loop(self):
