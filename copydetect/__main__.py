@@ -110,6 +110,11 @@ def main():
     parser.add_argument('--version', action='version',
                         version="copydetect v" + __version__,
                         help="print version number and exit")
+    parser.add_argument("--encoding", default="utf-8",
+                        help="encoding to use for reading files. If files use "
+                        "varying encodings, --encoding DETECT can be used to "
+                        "detect the encoding of all files (requires the "
+                        "chardet package)")
     args = parser.parse_args()
 
     if args.conf:
@@ -135,6 +140,7 @@ def main():
           "html_file" : str(Path(args.out_file)),
           "pdf_file" : str(Path(args.out_file).with_suffix(".pdf")),
           "csv_file" : str(Path(args.out_file).with_suffix(".csv")),
+          "encoding": args.encoding,
         }
     else:
         parser.error("either a path to a configuration file (-c) or a "

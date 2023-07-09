@@ -211,3 +211,13 @@ class TestParameters():
         detector.generate_html_report()
 
         assert Path(tmpdir + "/report.html").exists()
+
+    def test_encoding_specification(self):
+        detector = CopyDetector(test_dirs=[TESTS_DIR + "/sample_py"],
+                                extensions=["c"], encoding="utf-16",
+                                silent=True)
+        detector.add_file(TESTS_DIR + "/sample_other/c_sample_utf16.c")
+        detector.run()
+
+        # make sure utf-16 file was loaded correctly
+        assert len(list(detector.file_data.values())[0].raw_code) > 0
