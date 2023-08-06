@@ -44,30 +44,51 @@
 
     <div class="row" style="font-size: small;">
       <div class="col3">
-        <b>Number of files tested (vertical):</b> {{ test_count }}, 
-        <b>above threshold:</b> {{ flagged_file_count }} ({{ "%.2f"|format(flagged_file_count/test_count*100) }}%)
-        <ul>
-          {%- for file in test_files %}
-            <li>{{ loop.index0 }}={{ file }}</li> 
-          {% endfor -%}
-        </ul>
+        <p>
+          <b>Number of files tested (vertical):</b> {{ test_count }}, 
+          <b>above threshold:</b> {{ flagged_file_count }} ({{ "%.2f"|format(flagged_file_count/test_count*100) }}%)<br><br>
+          <button class="btn btn-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-test-files" aria-expanded="false" aria-controls="collapse-test-files">
+            View <i>test</i> files
+          </button>
+        </p>
+        <div class="collapse" id="collapse-test-files">
+          <ul>
+            {%- for file in test_files %}
+              <li>{{ loop.index0 }}={{ file }}</li> 
+            {% endfor -%}
+          </ul>
+        </div>
       </div>
       <div class="col3">
-        <b>Number of reference files (horizontal):</b> {{ compare_count }}
-        <ul>
-          {%- for file in compare_files %}
-            <li>{{ loop.index0 }}={{ file }}</li> 
-          {% endfor -%}
-        </ul>
+        <p>
+          <b>Number of reference files (horizontal):</b> {{ compare_count }}<br><br>
+          <button class="btn btn-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-reference-files" aria-expanded="false" aria-controls="collapse-reference-files">
+            View <i>reference</i> files
+          </button>
+        </p>
+        <div class="collapse" id="collapse-reference-files">
+          <ul>
+            {%- for file in compare_files %}
+              <li>{{ loop.index0 }}={{ file }}</li> 
+            {% endfor -%}
+          </ul>
+        </div>
       </div>
       <div class="col3">
-        <b>Execution params (see <code>copydetect --help</code>):</b>
-        <ul>
-          <li><b>version:</b> {{ version }}</li>
-          {%- for key, value in args.items() %}
-            <li><b>{{ key }}:</b> {{ value }}</li> 
-          {% endfor -%}
-        <ul>
+        <p>
+          <b>Execution params (see <code>copydetect --help</code>):</b><br><br>
+          <button class="btn btn-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-exec-params" aria-expanded="false" aria-controls="collapse-exec-params">
+            View execution parameters
+          </button>
+        </p>
+        <div class="collapse" id="collapse-exec-params">
+          <ul>
+            <li><b>version:</b> {{ version }}</li>
+            {%- for key, value in args.items() %}
+              <li><b>{{ key }}:</b> {{ value }}</li> 
+            {% endfor -%}
+          <ul>
+        </div>
       </div>
     </div>
 
