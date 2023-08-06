@@ -18,6 +18,10 @@
     pre {
       text-align: left;
     }
+    .col3 {
+      float: left;
+      width: 33%;
+    }
   </style>
 </head>
 <body>
@@ -37,11 +41,36 @@
     <p style="text-align: center">
       <i>Note: a score of -1 in the similarity matrix indicates the comparison was skipped</i>
     </p>
-    <p>
-    Number of files tested: {{ test_count }}<br>
-    Number of reference files: {{ compare_count }}<br>
-    Test files above display threshold: {{ flagged_file_count }} ({{ "%.2f"|format(flagged_file_count/test_count*100) }}%)<br><br>
-    </p>
+
+    <div class="row" style="font-size: small;">
+      <div class="col3">
+        <b>Number of files tested (vertical):</b> {{ test_count }}, 
+        <b>above threshold:</b> {{ flagged_file_count }} ({{ "%.2f"|format(flagged_file_count/test_count*100) }}%)
+        <ul>
+          {%- for file in test_files %}
+            <li>{{ loop.index0 }}={{ file }}</li> 
+          {% endfor -%}
+        </ul>
+      </div>
+      <div class="col3">
+        <b>Number of reference files (horizontal):</b> {{ compare_count }}
+        <ul>
+          {%- for file in compare_files %}
+            <li>{{ loop.index0 }}={{ file }}</li> 
+          {% endfor -%}
+        </ul>
+      </div>
+      <div class="col3">
+        <b>Execution params (see <code>copydetect --help</code>):</b>
+        <ul>
+          <li><b>version:</b> {{ version }}</li>
+          {%- for key, value in args.items() %}
+            <li><b>{{ key }}:</b> {{ value }}</li> 
+          {% endfor -%}
+        <ul>
+      </div>
+    </div>
+
 
   <h2>Matched Code</h2>
   <table class="table table-striped table-sm">
