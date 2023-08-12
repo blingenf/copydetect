@@ -20,6 +20,7 @@ from jinja2 import Template
 from .utils import (filter_code, highlight_overlap, get_copied_slices,
                     get_document_fingerprints, find_fingerprint_overlap,
                     get_token_coverage)
+from . import __version__
 from . import defaults
 
 class CodeFingerprint:
@@ -649,7 +650,7 @@ class CopyDetector:
         code_list.sort(key=lambda x: -x[0])
         return code_list
 
-    def generate_html_report(self, output_mode="save"):
+    def generate_html_report(self, output_mode="save", args={}):
         """Generates an html report listing all files with similarity
         above the display_threshold, with the copied code segments
         highlighted.
@@ -660,6 +661,9 @@ class CopyDetector:
             If "save", the output will be saved to the file specified
             by self.out_file. If "return", the output HTML will be
             directly returned by this function.
+        args : dict
+            CLI args to include them in the report.
+
         """
         if len(self.similarity_matrix) == 0:
             logging.error("Cannot generate report: no files compared")
@@ -695,8 +699,12 @@ class CopyDetector:
         flagged = self.similarity_matrix[:,:,0] > self.display_t
         flagged_file_count = np.sum(np.any(flagged, axis=1))
 
-        output = template.render(test_count=len(self.test_files),
+        output = template.render(args=args,
+                                 version=__version__,
+                                 test_count=len(self.test_files),
+                                 test_files=self.test_files,
                                  compare_count=len(self.ref_files),
+                                 compare_files=self.ref_files,
                                  flagged_file_count=flagged_file_count,
                                  code_list=code_list,
                                  sim_mtx_base64=sim_mtx_base64,

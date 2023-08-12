@@ -120,7 +120,7 @@ def main():
     # get overlapping code
     detector = CopyDetector.from_config(config)
     detector.run()
-    detector.generate_html_report()
+    detector.generate_html_report(args=vars(args))
 
 if __name__ == "__main__":
     main()
