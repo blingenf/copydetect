@@ -10,7 +10,6 @@ import webbrowser
 import pkg_resources
 import io
 import base64
-import warnings
 import json
 
 from tqdm import tqdm
@@ -81,8 +80,10 @@ class CodeFingerprint:
         for fingerprint comparison, after dropping duplicate k-grams and
         performing winnowing.
     """
-    def __init__(self, file, k, win_size, boilerplate=[], filter=True,
+    def __init__(self, file, k, win_size, boilerplate=None, filter=True,
                  language=None, fp=None, encoding: str = "utf-8"):
+        if boilerplate is None:
+            boilerplate = []
         if fp is not None:
             code = fp.read()
         elif encoding == "DETECT":
@@ -260,30 +261,14 @@ class CopyDetector:
         }
         self.conf = CopydetectConfig(**conf_args)
 
-        self.silent = self.conf.silent
-        self.test_dirs = self.conf.test_dirs
-        self.ref_dirs = self.conf.ref_dirs
-        self.boilerplate_dirs = self.conf.boilerplate_dirs
-        self.extensions = self.conf.extensions
-        self.noise_t = self.conf.noise_t
-        self.guarantee_t = self.conf.guarantee_t
-        self.display_t = self.conf.display_t
-        self.same_name_only = self.conf.same_name_only
-        self.ignore_leaf = self.conf.ignore_leaf
-        self.autoopen = self.conf.autoopen
-        self.disable_filtering = self.conf.disable_filtering
-        self.force_language = self.conf.force_language
-        self.truncate = self.conf.truncate
-        self.out_file = self.conf.out_file
-        self.encoding = self.conf.encoding
-
-        self.out_file = self.conf.out_file
-        self.window_size = self.conf.window_size
-
-        self.test_files = self._get_file_list(self.test_dirs, self.extensions)
-        self.ref_files = self._get_file_list(self.ref_dirs, self.extensions)
+        self.test_files = self._get_file_list(
+            self.conf.test_dirs, self.conf.extensions
+        )
+        self.ref_files = self._get_file_list(
+            self.conf.ref_dirs, self.conf.extensions
+        )
         self.boilerplate_files = self._get_file_list(
-            self.boilerplate_dirs, self.extensions
+            self.conf.boilerplate_dirs, self.conf.extensions
         )
 
         # before run() is called, similarity data should be empty
@@ -364,10 +349,14 @@ class CopyDetector:
         boilerplate_hashes = []
         for file in self.boilerplate_files:
             try:
-                fingerprint=CodeFingerprint(file, self.noise_t, 1,
-                                            filter=not self.disable_filtering,
-                                            language=self.force_language,
-                                            encoding=self.encoding)
+                fingerprint = CodeFingerprint(
+                    file,
+                    k=self.conf.noise_t,
+                    win_size=1,
+                    filter=not self.conf.disable_filtering,
+                    language=self.conf.force_language,
+                    encoding=self.conf.encoding
+                )
                 boilerplate_hashes.extend(fingerprint.hashes)
             except UnicodeDecodeError:
                 logging.warning(f"Skipping {file}: file not UTF-8 text")
@@ -382,13 +371,13 @@ class CopyDetector:
         """
         boilerplate_hashes = self._get_boilerplate_hashes()
         for code_f in tqdm(file_list, bar_format= '   {l_bar}{bar}{r_bar}',
-                           disable=self.silent):
+                           disable=self.conf.silent):
             if code_f not in self.file_data:
                 try:
                     self.file_data[code_f] = CodeFingerprint(
-                        code_f, self.noise_t, self.window_size,
-                        boilerplate_hashes, not self.disable_filtering,
-                        self.force_language, encoding=self.encoding)
+                        code_f, self.conf.noise_t, self.conf.window_size,
+                        boilerplate_hashes, not self.conf.disable_filtering,
+                        self.conf.force_language, encoding=self.conf.encoding)
 
                 except UnicodeDecodeError:
                     logging.warning(f"Skipping {code_f}: file not UTF-8 text")
@@ -402,7 +391,7 @@ class CopyDetector:
         token_overlap_matrix, respectively.
         """
         start_time = time.time()
-        if not self.silent:
+        if not self.conf.silent:
             print("  0.00: Generating file fingerprints")
         self._preprocess_code(self.test_files + self.ref_files)
 
@@ -416,7 +405,7 @@ class CopyDetector:
         )
         self.slice_matrix = {}
 
-        if not self.silent:
+        if not self.conf.silent:
             print(f"{time.time()-start_time:6.2f}: Beginning code comparison")
 
         # this is used to track which files have been compared to avoid
@@ -424,15 +413,18 @@ class CopyDetector:
         # test and reference files
         comparisons = {}
 
-        for i, test_f in enumerate(tqdm(self.test_files,
-                bar_format= '   {l_bar}{bar}{r_bar}', disable=self.silent)):
+        for i, test_f in enumerate(
+            tqdm(self.test_files,
+                 bar_format= '   {l_bar}{bar}{r_bar}',
+                 disable=self.conf.silent)
+        ):
             for j, ref_f in enumerate(self.ref_files):
                 if (test_f not in self.file_data
                         or ref_f not in self.file_data
                         or test_f == ref_f
-                        or (self.same_name_only
+                        or (self.conf.same_name_only
                             and (Path(test_f).name != Path(ref_f).name))
-                        or (self.ignore_leaf
+                        or (self.conf.ignore_leaf
                             and (Path(test_f).parent == Path(ref_f).parent))):
                     continue
 
@@ -451,7 +443,7 @@ class CopyDetector:
                 self.similarity_matrix[i, j] = np.array([sim1, sim2])
                 self.token_overlap_matrix[i, j] = overlap
 
-        if not self.silent:
+        if not self.conf.silent:
             print(f"{time.time()-start_time:6.2f}: Code comparison completed")
 
     def run(self):
@@ -489,7 +481,7 @@ class CopyDetector:
         if len(self.similarity_matrix) == 0:
             logging.error("Cannot generate code list: no files compared")
             return []
-        x,y = np.where(self.similarity_matrix[:,:,0] > self.display_t)
+        x,y = np.where(self.similarity_matrix[:,:,0] > self.conf.display_t)
 
         code_list = []
         file_pairs = set()
@@ -510,7 +502,7 @@ class CopyDetector:
                 slices_test = self.slice_matrix[(ref_f, test_f)][1]
                 slices_ref = self.slice_matrix[(ref_f, test_f)][0]
 
-            if self.truncate:
+            if self.conf.truncate:
                 truncate = 10
             else:
                 truncate = -1
@@ -573,7 +565,7 @@ class CopyDetector:
         with open(data_dir + "report.html", encoding="utf-8") as template_fp:
             template = Template(template_fp.read())
 
-        flagged = self.similarity_matrix[:,:,0] > self.display_t
+        flagged = self.similarity_matrix[:,:,0] > self.conf.display_t
         flagged_file_count = np.sum(np.any(flagged, axis=1))
 
         formatted_conf = json.dumps(self.conf.to_json(), indent=4)
@@ -589,13 +581,17 @@ class CopyDetector:
                                  sim_hist_base64=sim_hist_base64)
 
         if output_mode == "save":
-            with open(self.out_file, "w", encoding="utf-8") as report_f:
+            with open(self.conf.out_file, "w", encoding="utf-8") as report_f:
                 report_f.write(output)
 
-            if not self.silent:
-                print(f"Output saved to {self.out_file.replace('//', '/')}")
-            if self.autoopen:
-                webbrowser.open('file://' + str(Path(self.out_file).resolve()))
+            if not self.conf.silent:
+                print(
+                    f"Output saved to {self.conf.out_file.replace('//', '/')}"
+                )
+            if self.conf.autoopen:
+                webbrowser.open(
+                    'file://' + str(Path(self.conf.out_file).resolve())
+                )
         elif output_mode == "return":
             return output
         else:

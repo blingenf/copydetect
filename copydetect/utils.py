@@ -127,12 +127,14 @@ def get_copied_slices(idx, k):
 
     return np.array([slice_starts, slice_ends])
 
-def get_document_fingerprints(doc, k, window_size, boilerplate=[]):
+def get_document_fingerprints(doc, k, window_size, boilerplate=None):
     """Given a document, computes all k-gram hashes and uses the
     winnowing algorithm to reduce their number. Optionally takes a
     list of boilerplate hashes to remove from the winnowed list.
     Returns the selected hashes and their indexes in the original list
     """
+    if boilerplate is None:
+        boilerplate = []
     hashes, idx = winnow(hashed_kgrams(doc, k=k), window_size=window_size)
     if len(boilerplate) > 0:
         _, overlap_idx, _ = np.intersect1d(hashes, boilerplate,
