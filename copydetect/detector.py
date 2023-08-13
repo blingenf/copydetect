@@ -11,6 +11,7 @@ import pkg_resources
 import io
 import base64
 import warnings
+import json
 
 from tqdm import tqdm
 import numpy as np
@@ -22,6 +23,7 @@ from .utils import (filter_code, highlight_overlap, get_copied_slices,
                     get_token_coverage)
 from . import __version__
 from . import defaults
+from ._config import CopydetectConfig
 
 class CodeFingerprint:
     """Class for tokenizing, filtering, fingerprinting, and winnowing
@@ -184,15 +186,6 @@ class CopyDetector:
 
     Parameters
     ----------
-    config : dict
-        Dictionary containing configuration parameters. Note that this
-        uses the verbose version of each of the parameters listed
-        below. If provided, parameters set in the configuration
-        dictionary will overwrite default parameters and other
-        parameters passed to the initialization function.
-
-        Note that this parameter is deprecated and will be removed in a
-        future version.
     test_dirs : list
         (test_directories) A list of directories to recursively search
         for files to check for plagiarism.
@@ -250,8 +243,8 @@ class CopyDetector:
         chardet library will be used (if installed) to automatically
         detect file encoding
     """
-    def __init__(self, config=None, test_dirs=[], ref_dirs=[],
-                 boilerplate_dirs=[], extensions=["*"],
+    def __init__(self, test_dirs=None, ref_dirs=None,
+                 boilerplate_dirs=None, extensions=None,
                  noise_t=defaults.NOISE_THRESHOLD,
                  guarantee_t=defaults.GUARANTEE_THRESHOLD,
                  display_t=defaults.DISPLAY_THRESHOLD,
@@ -259,84 +252,45 @@ class CopyDetector:
                  disable_filtering=False, force_language=None,
                  truncate=False, out_file="./report.html", silent=False,
                  encoding: str = "utf-8"):
-        if config is not None:
-            # temporary workaround to ensure existing code continues
-            # to work
-            warnings.warn(
-                "use CopyDetector.from_config to initialize CopyDetector from "
-                "a config file. The config parameter is deprecated and will be"
-                " removed in a future version.",
-                DeprecationWarning, stacklevel=2
-            )
-            args = locals()
-            del args["self"]
-            del args["config"]
-            self.__init__(**{**args, **self._read_config(config)})
-            return
+        conf_args = locals()
+        conf_args = {
+            key: val
+            for key, val in conf_args.items()
+            if key != "self" and val is not None
+        }
+        self.conf = CopydetectConfig(**conf_args)
 
-        self.silent = silent
-        self.test_dirs = test_dirs
-        if len(ref_dirs) == 0:
-            self.ref_dirs = test_dirs
-        else:
-            self.ref_dirs = ref_dirs
-        self.boilerplate_dirs = boilerplate_dirs
-        self.extensions = extensions
-        self.noise_t = noise_t
-        self.guarantee_t = guarantee_t
-        self.display_t = display_t
-        self.same_name_only = same_name_only
-        self.ignore_leaf = ignore_leaf
-        self.autoopen = autoopen
-        self.disable_filtering = disable_filtering
-        self.force_language = force_language
-        self.truncate = truncate
-        self.out_file = out_file
-        self.encoding = encoding
+        self.silent = self.conf.silent
+        self.test_dirs = self.conf.test_dirs
+        self.ref_dirs = self.conf.ref_dirs
+        self.boilerplate_dirs = self.conf.boilerplate_dirs
+        self.extensions = self.conf.extensions
+        self.noise_t = self.conf.noise_t
+        self.guarantee_t = self.conf.guarantee_t
+        self.display_t = self.conf.display_t
+        self.same_name_only = self.conf.same_name_only
+        self.ignore_leaf = self.conf.ignore_leaf
+        self.autoopen = self.conf.autoopen
+        self.disable_filtering = self.conf.disable_filtering
+        self.force_language = self.conf.force_language
+        self.truncate = self.conf.truncate
+        self.out_file = self.conf.out_file
+        self.encoding = self.conf.encoding
 
-        self._check_arguments()
-
-        out_path = Path(self.out_file)
-        if out_path.is_dir():
-            self.out_file += "/report.html"
-        elif out_path.suffix != ".html":
-            self.out_file = str(out_path) + ".html"
-
-        self.window_size = self.guarantee_t - self.noise_t + 1
+        self.out_file = self.conf.out_file
+        self.window_size = self.conf.window_size
 
         self.test_files = self._get_file_list(self.test_dirs, self.extensions)
         self.ref_files = self._get_file_list(self.ref_dirs, self.extensions)
-        self.boilerplate_files = self._get_file_list(self.boilerplate_dirs,
-                                                     self.extensions)
+        self.boilerplate_files = self._get_file_list(
+            self.boilerplate_dirs, self.extensions
+        )
 
         # before run() is called, similarity data should be empty
         self.similarity_matrix = np.array([])
         self.token_overlap_matrix = np.array([])
         self.slice_matrix = {}
         self.file_data = {}
-
-    @staticmethod
-    def _read_config(config: dict) -> dict:
-        """Helper function for translating json configuration parameters
-        to the arguments taken by __init__
-        """
-        config_param_mapping = {
-            "noise_threshold": "noise_t",
-            "guarantee_threshold": "guarantee_t",
-            "display_threshold": "display_t",
-            "test_directories": "test_dirs",
-            "reference_directories": "ref_dirs",
-            "boilerplate_directories": "boilerplate_dirs"
-        }
-        for conf_key, param_key in config_param_mapping.items():
-            if conf_key in config:
-                config[param_key] = config[conf_key]
-                del config[conf_key]
-        if "disable_autoopen" in config:
-            config["autoopen"] = not config["disable_autoopen"]
-            del config["disable_autoopen"]
-
-        return config
 
     @classmethod
     def from_config(cls, config):
@@ -353,82 +307,8 @@ class CopyDetector:
         CopyDetector
             Detection object initialized with config
         """
-        return cls(**cls._read_config(config))
-
-    def _load_config(self, config):
-        """Sets member variables according to a configuration
-        dictionary.
-        """
-        self.noise_t = config["noise_threshold"]
-        self.guarantee_t = config["guarantee_threshold"]
-        self.display_t = config["display_threshold"]
-        self.test_dirs = config["test_directories"]
-        if "reference_directories" in config:
-            self.ref_dirs = config["reference_directories"]
-        if "extensions" in config:
-            self.extensions = config["extensions"]
-        if "boilerplate_directories" in config:
-            self.boilerplate_dirs = config["boilerplate_directories"]
-        if "force_language" in config:
-            self.force_language = config["force_language"]
-        if "same_name_only" in config:
-            self.same_name_only = config["same_name_only"]
-        if "ignore_leaf" in config:
-            self.ignore_leaf = config["ignore_leaf"]
-        if "disable_filtering" in config:
-            self.disable_filtering = config["disable_filtering"]
-        if "disable_autoopen" in config:
-            self.autoopen = not config["disable_autoopen"]
-        if "truncate" in config:
-            self.truncate = config["truncate"]
-        if "out_file" in config:
-            self.out_file = config["out_file"]
-
-    def _check_arguments(self):
-        """type/value checking helper function for __init__"""
-        if not isinstance(self.test_dirs, list):
-            raise TypeError("Test directories must be a list")
-        if not isinstance(self.ref_dirs, list):
-            raise TypeError("Reference directories must be a list")
-        if not isinstance(self.extensions, list):
-            raise TypeError("extensions must be a list")
-        if not isinstance(self.boilerplate_dirs, list):
-            raise TypeError("Boilerplate directories must be a list")
-        if not isinstance(self.same_name_only, bool):
-            raise TypeError("same_name_only must be true or false")
-        if not isinstance(self.ignore_leaf, bool):
-            raise TypeError("ignore_leaf must be true or false")
-        if not isinstance(self.disable_filtering, bool):
-            raise TypeError("disable_filtering must be true or false")
-        if not isinstance(self.autoopen, bool):
-            raise TypeError("disable_autoopen must be true or false")
-        if self.force_language is not None:
-            if not isinstance(self.force_language, str):
-                raise TypeError("force_language must be a string")
-        if not isinstance(self.truncate, bool):
-            raise TypeError("truncate must be true or false")
-        if not isinstance(self.noise_t, int):
-            if int(self.noise_t) == self.noise_t:
-                self.noise_t = int(self.noise_t)
-                self.window_size = int(self.window_size)
-            else:
-                raise TypeError("Noise threshold must be an integer")
-        if not isinstance(self.guarantee_t, int):
-            if int(self.guarantee_t) == self.guarantee_t:
-                self.guarantee_t = int(self.guarantee_t)
-                self.window_size = int(self.window_size)
-            else:
-                raise TypeError("Guarantee threshold must be an integer")
-
-        # value checking
-        if self.guarantee_t < self.noise_t:
-            raise ValueError("Guarantee threshold must be greater than or "
-                             "equal to noise threshold")
-        if self.display_t > 1 or self.display_t < 0:
-            raise ValueError("Display threshold must be between 0 and 1")
-        if not Path(self.out_file).parent.exists():
-            raise ValueError("Invalid output file path "
-                "(directory does not exist)")
+        params = CopydetectConfig.normalize_json(config)
+        return cls(**params)
 
     def _get_file_list(self, dirs, exts):
         """Recursively collects list of files from provided
@@ -650,7 +530,7 @@ class CopyDetector:
         code_list.sort(key=lambda x: -x[0])
         return code_list
 
-    def generate_html_report(self, output_mode="save", args={}):
+    def generate_html_report(self, output_mode="save"):
         """Generates an html report listing all files with similarity
         above the display_threshold, with the copied code segments
         highlighted.
@@ -661,9 +541,6 @@ class CopyDetector:
             If "save", the output will be saved to the file specified
             by self.out_file. If "return", the output HTML will be
             directly returned by this function.
-        args : dict
-            CLI args to include them in the report.
-
         """
         if len(self.similarity_matrix) == 0:
             logging.error("Cannot generate report: no files compared")
@@ -699,7 +576,8 @@ class CopyDetector:
         flagged = self.similarity_matrix[:,:,0] > self.display_t
         flagged_file_count = np.sum(np.any(flagged, axis=1))
 
-        output = template.render(args=args,
+        formatted_conf = json.dumps(self.conf.to_json(), indent=4)
+        output = template.render(config_params=formatted_conf,
                                  version=__version__,
                                  test_count=len(self.test_files),
                                  test_files=self.test_files,

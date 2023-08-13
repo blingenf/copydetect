@@ -14,14 +14,15 @@ class TestTwoFileDetection():
     """
     def test_compare(self):
         config = {
-          "test_directories" : [TESTS_DIR + "/sample_py/code"],
-          "reference_directories" : [TESTS_DIR + "/sample_py/code"],
-          "extensions" : ["py"],
-          "noise_threshold" : 25,
-          "guarantee_threshold" : 25,
-          "display_threshold" : 0
+            "test_directories" : [TESTS_DIR + "/sample_py/code"],
+            "reference_directories" : [TESTS_DIR + "/sample_py/code"],
+            "extensions" : ["py"],
+            "noise_threshold" : 25,
+            "guarantee_threshold" : 25,
+            "display_threshold" : 0,
+            "silent" : True
         }
-        detector = CopyDetector(config, silent=True)
+        detector = CopyDetector.from_config(config)
         detector.run()
 
         # file order is not guaranteed, so there are two possible
@@ -59,16 +60,17 @@ class TestTwoFileDetection():
 
     def test_compare_saving(self, tmpdir):
         config = {
-          "test_directories" : [TESTS_DIR + "/sample_py/code"],
-          "reference_directories" : [TESTS_DIR + "/sample_py/code"],
-          "extensions" : ["py"],
-          "noise_threshold" : 25,
-          "guarantee_threshold" : 25,
-          "display_threshold" : 0,
-          "disable_autoopen" : True,
-          "out_file" : tmpdir
+            "test_directories" : [TESTS_DIR + "/sample_py/code"],
+            "reference_directories" : [TESTS_DIR + "/sample_py/code"],
+            "extensions" : ["py"],
+            "noise_threshold" : 25,
+            "guarantee_threshold" : 25,
+            "display_threshold" : 0,
+            "disable_autoopen" : True,
+            "out_file" : tmpdir,
+            "silent" : True
         }
-        detector = CopyDetector(config, silent=True)
+        detector = CopyDetector.from_config(config)
         detector.run()
         detector.generate_html_report()
 
@@ -77,15 +79,16 @@ class TestTwoFileDetection():
 
     def test_compare_boilerplate(self):
         config = {
-          "test_directories" : [TESTS_DIR + "/sample_py/code"],
-          "reference_directories" : [TESTS_DIR + "/sample_py/code"],
-          "boilerplate_directories" : [TESTS_DIR + "/sample_py/boilerplate"],
-          "extensions" : ["py"],
-          "noise_threshold" : 25,
-          "guarantee_threshold" : 25,
-          "display_threshold" : 0
+            "test_directories" : [TESTS_DIR + "/sample_py/code"],
+            "reference_directories" : [TESTS_DIR + "/sample_py/code"],
+            "boilerplate_directories" : [TESTS_DIR + "/sample_py/boilerplate"],
+            "extensions" : ["py"],
+            "noise_threshold" : 25,
+            "guarantee_threshold" : 25,
+            "display_threshold" : 0,
+            "silent": True
         }
-        detector = CopyDetector(config, silent=True)
+        detector = CopyDetector.from_config(config)
         detector.run()
 
         assert np.array_equal(np.array([[[-1,-1],[0,0]],[[0,0],[-1,-1]]]),
@@ -98,16 +101,17 @@ class TestTwoFileDetection():
         and perform some basic sanity checking.
         """
         config = {
-          "test_directories" : [TESTS_DIR],
-          "reference_directories" : [TESTS_DIR],
-          "extensions" : ["*"],
-          "noise_threshold" : 25,
-          "guarantee_threshold" : 30,
-          "display_threshold" : 0.3,
-          "disable_autoopen" : True,
-          "out_file" : tmpdir
+            "test_directories" : [TESTS_DIR],
+            "reference_directories" : [TESTS_DIR],
+            "extensions" : ["*"],
+            "noise_threshold" : 25,
+            "guarantee_threshold" : 30,
+            "display_threshold" : 0.3,
+            "disable_autoopen" : True,
+            "out_file" : tmpdir,
+            "silent": True
         }
-        detector = CopyDetector(config, silent=True)
+        detector = CopyDetector.from_config(config)
         detector.run()
         html_out = detector.generate_html_report()
 
