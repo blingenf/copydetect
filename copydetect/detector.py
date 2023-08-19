@@ -10,7 +10,6 @@ import webbrowser
 import pkg_resources
 import io
 import base64
-import warnings
 import os.path
 import collections
 import json
@@ -597,11 +596,11 @@ class CopyDetector:
 
             if not self.conf.silent:
                 print(
-                    f"HTML report saved to {self.conf.out_file.replace('//', '/')}"
+                    f"HTML report saved to {self.conf.html_file.replace('//', '/')}"
                 )
             if self.conf.autoopen:
                 webbrowser.open(
-                    'file://' + str(Path(self.conf.out_file).resolve())
+                    'file://' + str(Path(self.conf.html_file).resolve())
                 )
         elif output_mode == "return":
             return output
@@ -662,9 +661,9 @@ class CopyDetector:
             value to use instead of NaN in the returned matrix
         """
         sim = self._get_sim(neg, nan)
-        sim.to_csv(self.csv_file)
-        if not self.silent:
-            print(f"CSV report saved to {str(self.csv_file).replace('//', '/')}")
+        sim.to_csv(self.conf.csv_file)
+        if not self.conf.silent:
+            print(f"CSV report saved to {str(self.conf.csv_file).replace('//', '/')}")
 
     def generate_pdf_report(self, minsim=.33, split=None, groups=None, **args):
         """Generate a clickable heatmap in a PDF file,
@@ -703,7 +702,7 @@ class CopyDetector:
         # late import to speedup program startup when PDF is not generated
         import seaborn as sns
         from scipy.cluster.hierarchy import to_tree
-        if not self.silent:
+        if not self.conf.silent:
             start_time = time.time()
             print("  0.00: Generating heatmaps")
         # extract args
@@ -766,10 +765,10 @@ class CopyDetector:
         else :
             rc = cc = None
         # generate heatmaps
-        pdf = Path(self.pdf_file)
+        pdf = Path(self.conf.pdf_file)
         todo = []
         with tqdm(total=0, bar_format= '   {l_bar}{bar}{r_bar}',
-                  disable=self.silent) as log:
+                  disable=self.conf.silent) as log:
             # global heatmap
             def _add(p, h, **cm):
                 todo.append({"path": p, "heatmap": h, "cm": cm})
@@ -819,7 +818,7 @@ class CopyDetector:
                 if cm :
                     args["heatmap"] = sns.clustermap(**cm)
                 self._draw_heatmap(**args, anchors=anchors, plt_kw=kw["plt"])
-        if not self.silent:
+        if not self.conf.silent:
             print(f"{time.time()-start_time:6.2f}: Heatmaps generation completed")
 
     def _draw_heatmap(self, path, heatmap, anchors, plt_kw):
@@ -854,7 +853,7 @@ class CopyDetector:
         yl = [t.label1.get_text() for t in ax.yaxis.get_major_ticks()]
         # add clickable links
         text = "|" * max(1, round(2.8 * height / width))
-        report = Path(self.html_file).name
+        report = Path(self.conf.html_file).name
         for i, x in enumerate(xl):
             for j, y in enumerate(yl):
                 if x == y:

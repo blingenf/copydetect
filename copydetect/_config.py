@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field, asdict
 from typing import Optional, List, Dict, ClassVar
 from pathlib import Path
+import warnings
 
 from copydetect import defaults
 
@@ -25,7 +26,10 @@ class CopydetectConfig:
     disable_filtering: bool = False
     force_language: Optional[str] = None
     truncate: bool = False
-    out_file: str = "./report.html"
+    out_file: Optional[str] = None
+    html_file: str = "./report.html"
+    pdf_file: Optional[str] = None
+    csv_file: Optional[str] = None
     silent: bool = False
     encoding: str = "utf-8"
 
@@ -83,21 +87,22 @@ class CopydetectConfig:
             )
         if self.display_t > 1 or self.display_t < 0:
             raise ValueError("Display threshold must be between 0 and 1")
-        if not Path(self.out_file).parent.exists():
-            raise ValueError(
-                "Invalid output file path (directory does not exist)"
-            )
+        for ext in ("html", "pdf", "csv"):
+            if not Path(getattr(self, f"{ext}_file")).parent.exists():
+                raise ValueError(
+                    "Invalid output file path (directory does not exist)"
+                )
 
     @staticmethod
-    def normalize_outfile(file_path: str) -> str:
-        """Ensures that the outfile has an html suffix. If the provided
-        out file is a directory, append report.html to the path.
+    def normalize_outfile(file_path: str, extension: str = "html") -> str:
+        """Ensures that the outfile has a the correct suffix. If the
+        provided file is a directory, append report.EXT to the path.
         """
-        out_path = Path(file_path)
-        if out_path.is_dir():
-            file_path += "/report.html"
-        elif out_path.suffix != ".html":
-            file_path = str(out_path) + ".html"
+        file_path = Path(file_path)
+        if file_path.is_dir():
+            file_path += f"/report.{extension}"
+        elif file_path.suffix != f".{extension}":
+            file_path = str(file_path) + f".{extension}"
         return str(file_path)
 
     def to_json(self) -> dict:
@@ -132,7 +137,20 @@ class CopydetectConfig:
         """Sets reference directories to test directories if needed and
         performs argument checking.
         """
+        if self.out_file is not None:
+            warnings.warn(
+                "The out_file parameter is deprecated and will be removed "
+                "in a future version. Use the html_file parameter to "
+                "specify an HTML output file.",
+                DeprecationWarning, stacklevel=2
+            )
+            self.html_file = self.out_file
+
         if len(self.ref_dirs) == 0:
             self.ref_dirs = self.test_dirs
-        self.out_file = self.normalize_outfile(self.out_file)
+        for ext in ("html", "pdf", "csv"):
+            norm_path = self.normalize_outfile(
+                getattr(self, f"{ext}_file"), ext
+            )
+            setattr(self, f"{ext}_file", norm_path)
         self._check_arguments()
