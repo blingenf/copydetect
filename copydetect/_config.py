@@ -153,4 +153,5 @@ class CopydetectConfig:
                 getattr(self, f"{ext}_file"), ext
             )
             setattr(self, f"{ext}_file", norm_path)
+        self.window_size = self.guarantee_t - self.noise_t + 1
         self._check_arguments()
