@@ -67,9 +67,9 @@ class CodeFingerprint:
         in the filtered code to locations in the unfiltered code.
     hashes : 1D array of ints
         List of fingerprints extracted from the filtered code.
-    hash_idx : 1D array of ints
-        List of indexes of the selected fingerprints. Used for
-        translating hash indexes to indexes in the filtered code.
+    hash_idx : Dict[int, NDArray[int]]
+        Mapping of each fingerprint hash back to all indexes in the
+        original code in which this fingerprint appeared.
     k : int
         Value of provided k argument.
     language : str
@@ -77,8 +77,8 @@ class CodeFingerprint:
         rather than guessing from the file extension.
     token_coverage : int
         The number of tokens in the tokenized code which are considered
-        for fingerprint comparison, after dropping duplicate k-grams and
-        performing winnowing.
+        for fingerprint comparison, after performing winnowing and
+        removing boilerplate.
     """
     def __init__(self, file, k, win_size, boilerplate=None, filter=True,
                  language=None, fp=None, encoding: str = "utf-8"):

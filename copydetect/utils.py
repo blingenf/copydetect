@@ -135,14 +135,24 @@ def get_document_fingerprints(doc, k, window_size, boilerplate=None):
     """
     if boilerplate is None:
         boilerplate = []
-    hashes, idx = winnow(hashed_kgrams(doc, k=k), window_size=window_size)
+    all_hashes = hashed_kgrams(doc, k=k)
+    hashes, idx = winnow(
+        all_hashes, window_size=window_size, remove_duplicates=False
+    )
     if len(boilerplate) > 0:
         _, overlap_idx, _ = np.intersect1d(hashes, boilerplate,
                                            return_indices=True,
                                            assume_unique=True)
         idx = np.delete(idx, overlap_idx)
         hashes = np.delete(hashes, overlap_idx)
-    return hashes, idx
+
+    hash_dict = {}
+    for hash_val, i in zip(hashes, idx):
+        if hash_val not in hash_dict:
+            hash_dict[hash_val] = [i]
+        else:
+            hash_dict[hash_val].append(i)
+    return set(hashes), hash_dict
 
 def find_fingerprint_overlap(hashes1, hashes2, idx1, idx2):
     """Finds the indexes of overlapping values between two lists of
@@ -150,9 +160,13 @@ def find_fingerprint_overlap(hashes1, hashes2, idx1, idx2):
     and one for the second. The indexes of the original hashes are
     provided in case boilerplate results in gaps.
     """
-    overlap, ol_idx1, ol_idx2 = np.intersect1d(hashes1, hashes2,
-        return_indices=True, assume_unique=True)
-    return idx1[ol_idx1], idx2[ol_idx2]
+    intersection = hashes1.intersection(hashes2)
+    if len(intersection) > 0:
+        overlap_1 = np.concatenate([np.array(idx1[i]) for i in intersection])
+        overlap_2 = np.concatenate([np.array(idx2[i]) for i in intersection])
+        return overlap_1.flatten(), overlap_2.flatten()
+    else:
+        return np.array([], dtype=int), np.array([], dtype=int)
 
 def highlight_overlap(doc, slices, left_hl, right_hl,
                       truncate=-1, escape_html=False):
@@ -210,7 +224,11 @@ def get_token_coverage(idx, k, token_len):
     """Determines the number of tokens in the original document which
     are included in the winnowed indices
     """
+    if len(idx) > 0:
+        idx_arr = np.concatenate([np.array(i) for i in idx.values()])
+    else:
+        idx_arr = np.array([], dtype=int)
     coverage = np.zeros(token_len)
     for offset in range(k):
-        coverage[idx + offset] = 1
+        coverage[idx_arr + offset] = 1
     return np.sum(coverage)
