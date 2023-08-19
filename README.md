@@ -8,7 +8,7 @@ Copydetect is a code plagiarism detection tool based on the approach proposed in
 Note that, like MOSS, copydetect is designed to detect likely instances of plagiarism; it is not guaranteed to catch cheaters dedicated to evading it, and it does not provide a guarantee that plagiarism has occurred.
 
 ## Installation
-Copydetect can be installed using `pip install copydetect`. Note that Python version 3.6 or greater is required. You can then generate a report using the `copydetect` command (`copydetect.exe` on Windows. If your scripts folder is not in your PATH the code can also be run using `py.exe -m copydetect`).
+Copydetect can be installed using `pip install copydetect`. Note that Python version 3.7 or greater is required. You can then generate a report using the `copydetect` command (`copydetect.exe` on Windows. If your scripts folder is not in your PATH the code can also be run using `py.exe -m copydetect`).
 
 ## Usage
 The simplest usage is `copydetect -t DIRS`, where DIRS is a space-separated list of directories to search for input files. This will recursively search for all files in the provided directories and compare every file with every other file. To look only at specific file extensions, use `-e` followed by another space-separated list (for example, `copydetect -t student_code -e cc cpp h`)
@@ -36,6 +36,7 @@ Configuration options can be provided either by using the command line arguments
 - `disable_autoopen` (`-a`, `--disable-autoopen`):  if `true`, the detector will not automatically open a browser window to display the report.
 - `truncate` (`-T`, `--truncate`):  if `true`, highlighted code will be truncated to remove non-highlighted regions from the displayed output (sections not within 10 lines of highlighted code will be replaced with "...").
 - `html_file` (`-O`, `--out-file`): path to save output report to. A '.html' extension will be added to the path if not provided. If a directory is provided instead of a file, the report will be saved to that directory as report.html.
+- `encoding` (`--encoding`): encoding to use for reading files (the default is UTF-8). If files use varying encodings, --encoding DETECT can be used to detect the encoding of all files *(note: encoding detection requires the chardet package)*.
 
 ## API
 Copydetect can also be run via the python API. An example of basic usage is provided below. API documentation is available [here](https://copydetect.readthedocs.io/en/latest/api.html).

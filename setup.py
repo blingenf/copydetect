@@ -23,11 +23,10 @@ setup(name="copydetect",
       install_requires=["numpy", "matplotlib", "jinja2", "pygments", "tqdm",
                         "pandas", "seaborn", "scipy", "fastcluster"],
       package_data={"copydetect" : ["data/*"]},
-      python_requires=">=3.6",
+      python_requires=">=3.7",
       entry_points={"console_scripts" : [
           "copydetect = copydetect.__main__:main"]},
       classifiers=[
-          "Programming Language :: Python :: 3.6",
           "Programming Language :: Python :: 3.7",
           "Programming Language :: Python :: 3.8",
           "Programming Language :: Python :: 3.9",

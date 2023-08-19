@@ -18,6 +18,14 @@
     pre {
       text-align: left;
     }
+    .col3 {
+      float: left;
+      width: 33%;
+    }
+    .file-info-list {
+      max-height: 900px;
+      overflow-y: scroll;
+    }
   </style>
 </head>
 <body>
@@ -37,11 +45,54 @@
     <p style="text-align: center">
       <i>Note: a score of -1 in the similarity matrix indicates the comparison was skipped</i>
     </p>
-    <p>
-    Number of files tested: {{ test_count }}<br>
-    Number of reference files: {{ compare_count }}<br>
-    Test files above display threshold: {{ flagged_file_count }} ({{ "%.2f"|format(flagged_file_count/test_count*100) }}%)<br><br>
-    </p>
+
+    <div class="row" style="font-size: small;">
+      <div class="col3">
+        <p>
+          <b>Number of files tested (vertical):</b> {{ test_count }}<br>
+          <b>Number above display threshold:</b> {{ flagged_file_count }} ({{ "%.2f"|format(flagged_file_count/test_count*100) }}%)<br><br>
+          <button class="btn btn-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-test-files" aria-expanded="false" aria-controls="collapse-test-files">
+            View <i>test</i> files
+          </button>
+        </p>
+        <div class="collapse" id="collapse-test-files">
+          <ul class="file-info-list">
+            {%- for file in test_files %}
+              <li>{{ loop.index0 }}={{ file }}</li> 
+            {% endfor -%}
+          </ul>
+        </div>
+      </div>
+      <div class="col3">
+        <p>
+          <b>Number of reference files (horizontal):</b> {{ compare_count }}<br><br><br>
+          <button class="btn btn-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-reference-files" aria-expanded="false" aria-controls="collapse-reference-files">
+            View <i>reference</i> files
+          </button>
+        </p>
+        <div class="collapse" id="collapse-reference-files">
+          <ul class="file-info-list">
+            {%- for file in compare_files %}
+              <li>{{ loop.index0 }}={{ file }}</li> 
+            {% endfor -%}
+          </ul>
+        </div>
+      </div>
+      <div class="col3">
+        <p>
+          <b>Execution params (see <code>copydetect --help</code>):</b><br><br><br>
+          <button class="btn btn-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-exec-params" aria-expanded="false" aria-controls="collapse-exec-params">
+            View execution parameters
+          </button>
+        </p>
+        <div class="collapse" id="collapse-exec-params">
+          <b>version:</b> {{ version }}<br>
+          <b>Configuration:</b>
+          <pre class="file-info-list">{{config_params}}</pre>
+        </div>
+      </div>
+    </div>
+
 
   <h2>Matched Code</h2>
   <table class="table table-striped table-sm">
