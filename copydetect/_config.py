@@ -135,4 +135,5 @@ class CopydetectConfig:
         if len(self.ref_dirs) == 0:
             self.ref_dirs = self.test_dirs
         self.out_file = self.normalize_outfile(self.out_file)
+        self.window_size = self.guarantee_t - self.noise_t + 1
         self._check_arguments()
