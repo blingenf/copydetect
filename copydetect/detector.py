@@ -65,8 +65,8 @@ class CodeFingerprint:
         The cumulative number of characters removed during filtering at
         each index of the filtered code. Used for translating locations
         in the filtered code to locations in the unfiltered code.
-    hashes : 1D array of ints
-        List of fingerprints extracted from the filtered code.
+    hashes : Set[int]
+        Set of fingerprint hashes extracted from the filtered code.
     hash_idx : Dict[int, List[int]]
         Mapping of each fingerprint hash back to all indexes in the
         original code in which this fingerprint appeared.
