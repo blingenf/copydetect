@@ -7,12 +7,22 @@ from pathlib import Path
 
 TESTS_DIR = str(Path(__file__).parent)
 
-class TestTwoFileDetection():
+
+@pytest.fixture
+def sample_file_metrics():
+    return {
+        "file1_len": 2052,
+        "file2_len": 1257,
+        "token_overlap": 1155
+    }
+
+
+class TestTwoFileDetection:
     """Test of the user-facing copydetect code for a simple two-file
     case. The two files both use several sections from a boilerplate
     file but are otherwise different.
     """
-    def test_compare(self):
+    def test_compare(self, sample_file_metrics):
         config = {
             "test_directories" : [TESTS_DIR + "/sample_py/code"],
             "reference_directories" : [TESTS_DIR + "/sample_py/code"],
@@ -25,14 +35,18 @@ class TestTwoFileDetection():
         detector = CopyDetector.from_config(config)
         detector.run()
 
+        overlap = sample_file_metrics["token_overlap"]
+        sim1 = overlap / sample_file_metrics["file1_len"]
+        sim2 = overlap / sample_file_metrics["file2_len"]
+
         # file order is not guaranteed, so there are two possible
         # similarity matrices depending on the order of the files
-        possible_mtx_1 = np.array([[[-1, -1], [1137/1829,1137/1257]],
-                                  [[1137/1257,1137/1829], [-1, -1]]])
+        possible_mtx_1 = np.array([[[-1, -1], [sim1, sim2]],
+                                  [[sim2, sim1], [-1, -1]]])
         possible_mtx_2 = np.flip(possible_mtx_1, 2)
         assert (np.array_equal(possible_mtx_1, detector.similarity_matrix)
                 or np.array_equal(possible_mtx_2, detector.similarity_matrix))
-        assert np.array_equal(np.array([[-1, 1137],[1137,-1]]),
+        assert np.array_equal(np.array([[-1, overlap],[overlap,-1]]),
                               detector.token_overlap_matrix)
 
         html_out = detector.generate_html_report(output_mode="return")
@@ -46,16 +60,20 @@ class TestTwoFileDetection():
         assert test_str2 in html_out
         assert test_str3 in html_out
 
-    def test_compare_manual_config(self):
+    def test_compare_manual_config(self, sample_file_metrics):
         detector = CopyDetector(noise_t=25, guarantee_t=25, silent=True)
         detector.add_file(TESTS_DIR + "/sample_py/code/sample1.py")
         detector.add_file(TESTS_DIR + "/sample_py/code/sample2.py")
         detector.run()
 
-        assert np.array_equal(np.array([[[-1, -1], [1137/1829,1137/1257]],
-                                        [[1137/1257,1137/1829], [-1, -1]]]),
+        overlap = sample_file_metrics["token_overlap"]
+        sim1 = overlap / sample_file_metrics["file1_len"]
+        sim2 = overlap / sample_file_metrics["file2_len"]
+
+        assert np.array_equal(np.array([[[-1, -1], [sim1, sim2]],
+                                        [[sim2, sim1], [-1, -1]]]),
                               detector.similarity_matrix)
-        assert np.array_equal(np.array([[-1,1137],[1137,-1]]),
+        assert np.array_equal(np.array([[-1,overlap],[overlap,-1]]),
                               detector.token_overlap_matrix)
 
     def test_compare_saving(self, tmpdir):
@@ -125,22 +143,24 @@ class TestTwoFileAPIDetection():
     """Performs the same checks as the other two-file check, but uses
     the API instead of the command line code.
     """
-    def test_compare(self):
+    def test_compare(self, sample_file_metrics):
         fp1 = CodeFingerprint(TESTS_DIR+"/sample_py/code/sample1.py", 25, 1)
         fp2 = CodeFingerprint(TESTS_DIR+"/sample_py/code/sample2.py", 25, 1)
         token_overlap, similarities, slices = compare_files(fp1, fp2)
 
-        assert token_overlap == 1137
-        assert similarities[0] == 1137/1829
-        assert similarities[1] == 1137/1257
+        overlap = sample_file_metrics["token_overlap"]
+
+        assert token_overlap == overlap
+        assert similarities[0] == overlap / sample_file_metrics["file1_len"]
+        assert similarities[1] == overlap / sample_file_metrics["file2_len"]
 
     def test_compare_boilerplate(self):
         bp_fingerprint = CodeFingerprint(
             TESTS_DIR + "/sample_py/boilerplate/handout.py", 25, 1)
         fp1 = CodeFingerprint(TESTS_DIR+"/sample_py/code/sample1.py", 25, 1,
-                              bp_fingerprint.hashes)
+                              np.array(list(bp_fingerprint.hashes)))
         fp2 = CodeFingerprint(TESTS_DIR+"/sample_py/code/sample2.py", 25, 1,
-                              bp_fingerprint.hashes)
+                              np.array(list(bp_fingerprint.hashes)))
 
         token_overlap, similarities, slices = compare_files(fp1, fp2)
 

@@ -5,6 +5,7 @@ documents.
 
 import logging
 import warnings
+from typing import Dict, List
 
 from pygments import lexers, token
 import pygments.util
@@ -220,7 +221,7 @@ def highlight_overlap(doc, slices, left_hl, right_hl,
 
     return new_doc, hl_percent
 
-def get_token_coverage(idx, k, token_len):
+def get_token_coverage(idx: Dict[int, List[int]], k: int, token_len: int):
     """Determines the number of tokens in the original document which
     are included in the winnowed indices
     """
