@@ -26,6 +26,7 @@ class CopydetectConfig:
     force_language: Optional[str] = None
     truncate: bool = False
     out_file: str = "./report.html"
+    linked_css: List[str] = field(default_factory=lambda: [])
     silent: bool = False
     encoding: str = "utf-8"
 
@@ -74,7 +75,9 @@ class CopydetectConfig:
                 self.window_size = int(self.window_size)
             else:
                 raise TypeError("Guarantee threshold must be an integer")
-
+        if not isinstance(self.linked_css, list):
+            raise TypeError("Linked CSS entries must be a list")
+        
         # value checking
         if self.guarantee_t < self.noise_t:
             raise ValueError(
