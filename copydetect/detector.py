@@ -237,7 +237,7 @@ class CopyDetector:
         highlighted regions from the displayed output
     out_file : str
         Path to output report file.
-    linked_css: list
+    css_files: list
         List of css files that will be linked within the generated html report
     silent : bool
         If true, all logging output will be supressed.
@@ -253,7 +253,7 @@ class CopyDetector:
                  display_t=defaults.DISPLAY_THRESHOLD,
                  same_name_only=False, ignore_leaf=False, autoopen=True,
                  disable_filtering=False, force_language=None,
-                 truncate=False, out_file="./report.html", linked_css=None,
+                 truncate=False, out_file="./report.html", css_files=None,
                  silent=False, encoding: str = "utf-8"):
         conf_args = locals()
         conf_args = {
@@ -572,7 +572,7 @@ class CopyDetector:
 
         formatted_conf = json.dumps(self.conf.to_json(), indent=4)
         output = template.render(config_params=formatted_conf,
-                                 linked_css=self.conf.linked_css,
+                                 css_files=self.conf.css_files,
                                  version=__version__,
                                  test_count=len(self.test_files),
                                  test_files=self.test_files,

@@ -80,6 +80,10 @@ def main():
                         "If a directory is provided instead of a file, the "
                         "report will be saved  to that directory as "
                         "report.html.")
+    parser.add_argument("-C", '--css', nargs="+",
+                        metavar="CSS-FILE", default=[], dest="css_files",
+                        help="List of CSS files that will be linked in the "
+                        "generated HTML report file.")
     parser.add_argument('--version', action='version',
                         version="copydetect v" + __version__,
                         help="print version number and exit")
@@ -111,6 +115,7 @@ def main():
           "disable_autoopen" : args.autoopen,
           "truncate" : args.truncate,
           "out_file" : args.out_file,
+          "css_files": args.css_files,
           "encoding": args.encoding,
         }
     else:
