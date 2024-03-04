@@ -38,6 +38,10 @@ Configuration options can be provided either by using the command line arguments
 - `out_file` (`-O`, `--out-file`): path to save output report to. A '.html' extension will be added to the path if not provided. If a directory is provided instead of a file, the report will be saved to that directory as report.html.
 - `encoding` (`--encoding`): encoding to use for reading files (the default is UTF-8). If files use varying encodings, --encoding DETECT can be used to detect the encoding of all files *(note: encoding detection requires the chardet package)*.
 
+Advanced options:
+
+- `css` (`--css`): Optional list of CSS files that will be linked in the generated HTML report file. These will overwrite the styling of the default report.
+
 ## API
 Copydetect can also be run via the python API. An example of basic usage is provided below. API documentation is available [here](https://copydetect.readthedocs.io/en/latest/api.html).
 ```
