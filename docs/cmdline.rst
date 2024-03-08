@@ -33,3 +33,7 @@ Configuration options can be provided either by using the command line arguments
 - ``truncate`` (``-T``, ``--truncate``):  if ``true``, highlighted code will be truncated to remove non-highlighted regions from the displayed output (sections not within 10 lines of highlighted code will be replaced with "...").
 - ``out_file`` (``-O``, ``--out-file``): path to save output report to. A '.html' extension will be added to the path if not provided. If a directory is provided instead of a file, the report will be saved to that directory as report.html.
 - ``encoding`` (``--encoding``): encoding to use for reading files (the default is UTF-8). If files use varying encodings, --encoding DETECT can be used to detect the encoding of all files *(note: encoding detection requires the chardet package)*.
+
+Advanced options:
+
+- ``css`` (``--css``): Optional list of CSS files that will be linked in the generated HTML report file. These will overwrite the styling of the default report.
