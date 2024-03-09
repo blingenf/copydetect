@@ -7,7 +7,7 @@ from pathlib import Path
 import time
 import logging
 import webbrowser
-import pkg_resources
+import importlib.resources
 import io
 import base64
 import json
@@ -17,6 +17,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from jinja2 import Template
 
+import copydetect.data as data_files
 from .utils import (filter_code, highlight_overlap, get_copied_slices,
                     get_document_fingerprints, find_fingerprint_overlap,
                     get_token_coverage)
@@ -541,7 +542,6 @@ class CopyDetector:
             return
 
         code_list = self.get_copied_code_list()
-        data_dir = pkg_resources.resource_filename('copydetect', 'data/')
 
         plot_mtx = np.copy(self.similarity_matrix[:,:,0])
         plot_mtx[plot_mtx == -1] = np.nan
@@ -564,7 +564,9 @@ class CopyDetector:
         plt.close()
 
         # render template with jinja and save as html
-        with open(data_dir + "report.html", encoding="utf-8") as template_fp:
+        with importlib.resources.open_text(
+            data_files, "report.html", encoding="utf-8"
+        ) as template_fp:
             template = Template(template_fp.read())
 
         flagged = self.similarity_matrix[:,:,0] > self.conf.display_t
