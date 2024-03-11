@@ -20,7 +20,7 @@ class CopydetectConfig:
     guarantee_t: int = defaults.GUARANTEE_THRESHOLD
     display_t: float = defaults.DISPLAY_THRESHOLD
     same_name_only: bool = False
-    ignore_leaf: bool = False
+    ignore_depth: int = 0
     autoopen: bool = True
     disable_filtering: bool = False
     force_language: Optional[str] = None
@@ -52,8 +52,8 @@ class CopydetectConfig:
             raise TypeError("Boilerplate directories must be a list")
         if not isinstance(self.same_name_only, bool):
             raise TypeError("same_name_only must be true or false")
-        if not isinstance(self.ignore_leaf, bool):
-            raise TypeError("ignore_leaf must be true or false")
+        if not isinstance(self.ignore_depth, int):
+            raise TypeError("ignore_depth must be an integer")
         if not isinstance(self.disable_filtering, bool):
             raise TypeError("disable_filtering must be true or false")
         if not isinstance(self.autoopen, bool):

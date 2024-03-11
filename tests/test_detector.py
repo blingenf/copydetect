@@ -171,13 +171,31 @@ class TestTwoFileAPIDetection():
 class TestParameters():
     """Test cases for individual parameters"""
     def test_ignore_leaf(self):
+        # TODO Once ignore_leaf is added with deprecation warning, also test it
         detector = CopyDetector(test_dirs=[TESTS_DIR + "/sample_py"],
-                                ignore_leaf=True, silent=True)
+                                ignore_depth=1, silent=True)
         detector.run()
 
         # sample1 and sample2 should not have been compared
         # + 4 self compares = 6 total skips
         assert np.sum(detector.similarity_matrix[:,:,0] == -1) == 6
+
+    def test_ignore_depth_empty(self):
+        detector = CopyDetector(test_dirs=[TESTS_DIR + "/sample_other", TESTS_DIR + "/sample_sanity_check"],
+                                ignore_depth=2, silent=True)
+        detector.run()
+
+        # No files should be compared
+        assert (detector.similarity_matrix[:,:,0] == -1).all()
+        assert not detector.get_comparison_pairs()
+
+    def test_ignore_depth(self):
+        detector = CopyDetector(test_dirs=[TESTS_DIR + "/sample_py"],
+                                ignore_depth=2, silent=True)
+        detector.run()
+
+        # Only compare /handout.py with the files in /boilerplate and /code
+        assert np.sum(detector.similarity_matrix[:,:,0] != -1) == 6
 
     def test_same_name_only(self):
         detector = CopyDetector(test_dirs=[TESTS_DIR + "/sample_py"],

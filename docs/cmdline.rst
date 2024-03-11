@@ -27,7 +27,8 @@ Configuration options can be provided either by using the command line arguments
 - ``display_threshold`` (``-d``, ``--display-thresh``): the similarity percentage cutoff for displaying similar files on the detector report.
 - ``force_language`` (``-o``, ``--force-language``): forces the tokenizer to tokenize input as a specific language, rather than automatically detecting the language using the file extension.
 - ``same_name_only`` (``-s``, ``--same-name``): if ``true``, the detector will only compare files that have the same name (for example, ``decision_tree.py`` will not be compared to ``k_nn.py``). Note that this also means that, for example, ``bryson_k_nn.py`` will not be compared to ``sara_k_nn.py``.
-- ``ignore_leaf`` (``-l``, ``--ignore-leaf``):  if ``true``, the detector will not compare files located in the same leaf directory.
+- ``ignore_leaf`` (``-l``, ``--ignore-leaf``):  if ``true``, the detector will not compare files located in the same leaf directory (equivalent to setting ``--ignore-depth 1``).
+- ``ignore_depth`` (``--ignore-depth``):  if set to ``n``, the detector will not compare files whose n'th parent directory resolves to the same path.
 - ``disable_filtering`` (``-f``, ``--disable-filter``):  if ``true``, the detector will not tokenize and filter code before generating file fingerprints.
 - ``disable_autoopen`` (``-a``, ``--disable-autoopen``):  if ``true``, the detector will not automatically open a browser window to display the report.
 - ``truncate`` (``-T``, ``--truncate``):  if ``true``, highlighted code will be truncated to remove non-highlighted regions from the displayed output (sections not within 10 lines of highlighted code will be replaced with "...").

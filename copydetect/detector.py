@@ -2,7 +2,7 @@
 a set of test files (files to check for plagairism) and a set of
 reference files (files that might have been plagairised from).
 """
-
+from collections import defaultdict
 from pathlib import Path
 import time
 import logging
@@ -221,9 +221,9 @@ class CopyDetector:
     same_name_only : bool
         If true, the detector will only compare files that have the
         same name
-    ignore_leaf : bool
-        If true, the detector will not compare files located in the
-        same leaf directory.
+    ignore_depth : int
+        The detector will not compare files whose n'th parent folders
+        are equal.
     autoopen : bool
         If true, the detector will automatically open a webbrowser to
         display the results of generate_html_report
@@ -252,7 +252,7 @@ class CopyDetector:
                  noise_t=defaults.NOISE_THRESHOLD,
                  guarantee_t=defaults.GUARANTEE_THRESHOLD,
                  display_t=defaults.DISPLAY_THRESHOLD,
-                 same_name_only=False, ignore_leaf=False, autoopen=True,
+                 same_name_only=False, ignore_depth=0, autoopen=True,
                  disable_filtering=False, force_language=None,
                  truncate=False, out_file="./report.html", css_files=None,
                  silent=False, encoding: str = "utf-8"):
@@ -322,7 +322,7 @@ class CopyDetector:
         # convert to a set to remove duplicates, then back to a list
         return list(set(file_list))
 
-    def add_file(self, filename, type="testref"):
+    def add_file(self, filename, file_type="testref"):
         """Adds a file to the list of test files, reference files, or
         boilerplate files.
 
@@ -330,19 +330,21 @@ class CopyDetector:
         ----------
         filename : str
             Name of file to add.
-        type : {"testref", "test", "ref", "boilerplate"}
+        file_type : {"testref", "test", "ref", "boilerplate"}
             Type of file to add. "testref" will add the file as both a
             test and reference file.
         """
-        if type == "testref":
+        if file_type == "testref":
             self.test_files.append(filename)
             self.ref_files.append(filename)
-        elif type == "test":
+        elif file_type == "test":
             self.test_files.append(filename)
-        elif type == "ref":
+        elif file_type == "ref":
             self.ref_files.append(filename)
-        elif type == "boilerplate":
+        elif file_type == "boilerplate":
             self.boilerplate_files.append(filename)
+        else:
+            raise ValueError(file_type)
 
     def _get_boilerplate_hashes(self):
         """Generates a list of hashes of the boilerplate text. Returns
@@ -409,35 +411,30 @@ class CopyDetector:
         # test and reference files
         comparisons = {}
 
-        for i, test_f in enumerate(
-            tqdm(self.test_files,
-                 bar_format= '   {l_bar}{bar}{r_bar}',
-                 disable=self.conf.silent)
-        ):
-            for j, ref_f in enumerate(self.ref_files):
-                if (test_f not in self.file_data
-                        or ref_f not in self.file_data
-                        or test_f == ref_f
-                        or (self.conf.same_name_only
-                            and (Path(test_f).name != Path(ref_f).name))
-                        or (self.conf.ignore_leaf
-                            and (Path(test_f).parent == Path(ref_f).parent))):
-                    continue
+        test_indices = {f: i for i, f in enumerate(self.test_files)}
+        ref_indices = {f: i for i, f in enumerate(self.ref_files)}
 
-                if (ref_f, test_f) in comparisons:
-                    ref_idx, test_idx = comparisons[(ref_f, test_f)]
-                    overlap = self.token_overlap_matrix[ref_idx, test_idx]
-                    sim2, sim1 = self.similarity_matrix[ref_idx, test_idx]
-                else:
-                    overlap, (sim1, sim2), (slices1, slices2) = compare_files(
-                        self.file_data[test_f], self.file_data[ref_f]
-                    )
-                    comparisons[(test_f, ref_f)] = (i, j)
-                    if slices1.shape[0] != 0:
-                        self.slice_matrix[(test_f, ref_f)] = [slices1, slices2]
+        for test_f, ref_f in tqdm(self.get_comparison_pairs(),
+                                  bar_format='   {l_bar}{bar}{r_bar}',
+                                  disable=self.conf.silent
+                                  ):
+            i = test_indices[test_f]
+            j = ref_indices[ref_f]
 
-                self.similarity_matrix[i, j] = np.array([sim1, sim2])
-                self.token_overlap_matrix[i, j] = overlap
+            if (ref_f, test_f) in comparisons:
+                ref_idx, test_idx = comparisons[(ref_f, test_f)]
+                overlap = self.token_overlap_matrix[ref_idx, test_idx]
+                sim2, sim1 = self.similarity_matrix[ref_idx, test_idx]
+            else:
+                overlap, (sim1, sim2), (slices1, slices2) = compare_files(
+                    self.file_data[test_f], self.file_data[ref_f]
+                )
+                comparisons[(test_f, ref_f)] = (i, j)
+                if slices1.shape[0] != 0:
+                    self.slice_matrix[(test_f, ref_f)] = [slices1, slices2]
+
+            self.similarity_matrix[i, j] = np.array([sim1, sim2])
+            self.token_overlap_matrix[i, j] = overlap
 
     def run(self):
         """Runs the copy detection loop for detecting overlap between
@@ -466,6 +463,37 @@ class CopyDetector:
 
             if not self.conf.silent:
                 print(f"{time.time()-start_time:6.2f}: Code comparison completed")
+
+    def get_comparison_pairs(self):
+        """Get a set of file pairs that are considered during the
+        comparison.
+
+        Returns
+        -------
+        set
+            set of pairs that are considered during comparison.
+        """
+
+        compared_files = set()
+
+        for test_f in self.test_files:
+            test_path = Path(test_f).resolve()
+            for ref_f in self.ref_files:
+                ref_path = Path(ref_f).resolve()
+                if (test_f not in self.file_data
+                        or ref_f not in self.file_data
+                        or test_f == ref_f
+                        or (self.conf.same_name_only
+                            and (test_path.name != ref_path.name))):
+                    continue
+                if self.conf.ignore_depth:
+                    depth = self.conf.ignore_depth - 1
+                    ref_parents, test_parents = ref_path.parents, test_path.parents
+                    if (len(test_parents) >= depth and len(ref_parents) >= depth
+                            and test_parents[depth] == ref_parents[depth]):
+                        continue
+                compared_files.add((test_f, ref_f))
+        return compared_files
 
     def get_copied_code_list(self):
         """Get a list of copied code to display on the output report.
