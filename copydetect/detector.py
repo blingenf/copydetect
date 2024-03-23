@@ -393,10 +393,6 @@ class CopyDetector:
         locations of copied code are stored in slice_matrix and
         token_overlap_matrix, respectively.
         """
-        start_time = time.time()
-        if not self.conf.silent:
-            print("  0.00: Generating file fingerprints")
-        self._preprocess_code(self.test_files + self.ref_files)
 
         self.similarity_matrix = np.full(
             (len(self.test_files), len(self.ref_files), 2),
@@ -407,9 +403,6 @@ class CopyDetector:
             (len(self.test_files), len(self.ref_files)), -1
         )
         self.slice_matrix = {}
-
-        if not self.conf.silent:
-            print(f"{time.time()-start_time:6.2f}: Beginning code comparison")
 
         # this is used to track which files have been compared to avoid
         # unnecessary duplication when there is overlap between the
@@ -446,9 +439,6 @@ class CopyDetector:
                 self.similarity_matrix[i, j] = np.array([sim1, sim2])
                 self.token_overlap_matrix[i, j] = overlap
 
-        if not self.conf.silent:
-            print(f"{time.time()-start_time:6.2f}: Code comparison completed")
-
     def run(self):
         """Runs the copy detection loop for detecting overlap between
         test and reference files. If no files are in the provided
@@ -462,7 +452,20 @@ class CopyDetector:
             logging.error("Copy detector failed: No files found in "
                           "reference directories")
         else:
+            start_time = time.time()
+
+            if not self.conf.silent:
+                print("  0.00: Generating file fingerprints")
+
+            self._preprocess_code(self.test_files + self.ref_files)
+
+            if not self.conf.silent:
+                print(f"{time.time()-start_time:6.2f}: Beginning code comparison")
+
             self._comparison_loop()
+
+            if not self.conf.silent:
+                print(f"{time.time()-start_time:6.2f}: Code comparison completed")
 
     def get_copied_code_list(self):
         """Get a list of copied code to display on the output report.
