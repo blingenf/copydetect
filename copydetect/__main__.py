@@ -59,10 +59,16 @@ def main():
     parser.add_argument("-s", '--same-name', dest='same_name',
                         action='store_true', default=False,
                         help="only compare files which have the same name")
-    parser.add_argument("-l", '--ignore-leaf', dest='ignore_leaf',
-                        action='store_true', default=False,
-                        help="don't compare files located in the same "
-                        "leaf directory")
+
+    grouping = parser.add_mutually_exclusive_group()
+    grouping.add_argument("-l", '--ignore-leaf', dest='ignore_depth',
+                          action='store_const', const=1,
+                          help="don't compare files located in the same "
+                          "leaf directory")
+    grouping.add_argument('--ignore-depth', dest='ignore_depth',
+                          type=int, help="don't compare files whose n'th parent "
+                          "is the same folder", default=0)
+
     parser.add_argument("-f", '--disable-filter', dest='filter',
                         action='store_true', default=False,
                         help="disable code tokenization and filtering")
@@ -111,7 +117,7 @@ def main():
           "display_threshold" : args.display_thresh,
           "force_language" : args.language,
           "same_name_only" : args.same_name,
-          "ignore_leaf" : args.ignore_leaf,
+          "ignore_depth" : args.ignore_depth,
           "disable_filtering" : args.filter,
           "disable_autoopen" : args.autoopen,
           "truncate" : args.truncate,
